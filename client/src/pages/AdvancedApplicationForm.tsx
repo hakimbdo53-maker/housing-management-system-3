@@ -259,22 +259,31 @@ const AdvancedApplicationForm: React.FC = () => {
         );
       }
 
-      // Safely parse success response
+      // Handle 204 No Content as success
       let result;
-      try {
-        const contentType = response.headers.get('content-type');
-        if (!contentType || !contentType.includes('application/json')) {
-          throw new Error(`Invalid Content-Type: ${contentType || 'missing'}`);
-        }
+      if (response.status === 204) {
+        result = { success: true };
+      } else {
+        // Safely parse success response
+        try {
+          const contentType = response.headers.get('content-type');
+          if (!contentType || !contentType.includes('application/json')) {
+            throw new Error(`Invalid Content-Type: ${contentType || 'missing'}`);
+          }
 
-        const responseText = await response.text();
-        if (!responseText || responseText.trim() === '') {
-          throw new Error('Server returned empty response');
+          const responseText = await response.text();
+          if (!responseText || responseText.trim() === '') {
+            // Treat empty response as success for non-204 status
+            result = { success: true };
+          } else {
+            result = JSON.parse(responseText);
+          }
+        } catch (parseError) {
+          if (parseError instanceof SyntaxError) {
+            throw new Error(`فشل معالجة الرد: ${parseError.message}`);
+          }
+          throw parseError;
         }
-
-        result = JSON.parse(responseText);
-      } catch (parseError) {
-        throw new Error(`فشل معالجة الرد من الخادم: ${parseError instanceof Error ? parseError.message : 'خطأ غير معروف'}`);
       }
 
       setSubmitSuccess(true);

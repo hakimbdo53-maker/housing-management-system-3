@@ -120,6 +120,11 @@ export const safeJsonParse = async (response: Response, endpoint: string = 'unkn
     throw new Error(`API endpoint ${endpoint} returned HTTP ${response.status}`);
   }
 
+  // Handle 204 No Content
+  if (response.status === 204) {
+    return null;
+  }
+
   // Check Content-Type header
   const contentType = response.headers.get('content-type');
   if (!contentType || !contentType.includes('application/json')) {
@@ -129,7 +134,7 @@ export const safeJsonParse = async (response: Response, endpoint: string = 'unkn
   // Check if response body is empty
   const contentLength = response.headers.get('content-length');
   if (contentLength === '0') {
-    throw new Error(`API endpoint ${endpoint} returned empty response body`);
+    return null;
   }
 
   // Try to parse JSON
@@ -138,17 +143,13 @@ export const safeJsonParse = async (response: Response, endpoint: string = 'unkn
     
     // Check if text is empty
     if (!text || text.trim() === '') {
-      throw new Error(`API endpoint ${endpoint} returned empty response body`);
+      return null;
     }
 
     // Parse JSON
     const data = JSON.parse(text);
     
-    // Validate that we got actual data (not null, not empty string)
-    if (data === null || data === undefined || data === '') {
-      throw new Error(`API endpoint ${endpoint} returned empty JSON: ${text.substring(0, 200)}`);
-    }
-
+    // Return data even if null (it's valid JSON)
     return data;
   } catch (error) {
     if (error instanceof SyntaxError) {
@@ -180,6 +181,14 @@ apiClient.interceptors.request.use((config) => {
 // Validate response structure and content before returning
 apiClient.interceptors.response.use(
   (response) => {
+    // 204 No Content is valid - return empty success
+    if (response.status === 204) {
+      return {
+        ...response,
+        data: null,
+      };
+    }
+
     // Validate Content-Type is JSON
     const contentType = response.headers['content-type'];
     if (contentType && !contentType.includes('application/json')) {
@@ -188,7 +197,8 @@ apiClient.interceptors.response.use(
 
     // Check if response data is empty
     if (response.data === null || response.data === undefined) {
-      throw new Error(`API endpoint ${response.config.url} returned empty response`);
+      // Some endpoints may return null as valid response
+      return response;
     }
 
     if (typeof response.data === 'string' && response.data.trim() === '') {
@@ -203,6 +213,15 @@ apiClient.interceptors.response.use(
       // Response received but status code is outside 2xx range
       const status = error.response.status;
       const endpoint = error.config?.url || 'unknown endpoint';
+      
+      // 204 No Content is valid
+      if (status === 204) {
+        return Promise.resolve({
+          ...error.response,
+          data: null,
+          status: 204,
+        });
+      }
       
       if (status === 401) {
         // Handle unauthorized - clear token and redirect to login if needed
@@ -226,8 +245,22 @@ apiClient.interceptors.response.use(
       }
       
       // Try to get error message from response
-      const errorMessage = error.response.data?.message || error.response.data?.error || error.message;
-      return Promise.reject(new Error(errorMessage || `خطأ HTTP ${status}`));
+      let errorMessage: string | undefined;
+      try {
+        if (error.response.data) {
+          if (typeof error.response.data === 'string') {
+            errorMessage = error.response.data;
+          } else if (error.response.data.message) {
+            errorMessage = error.response.data.message;
+          } else if (error.response.data.error) {
+            errorMessage = error.response.data.error;
+          }
+        }
+      } catch (e) {
+        // Ignore parse errors
+      }
+      
+      return Promise.reject(new Error(errorMessage || error.message || `خطأ HTTP ${status}`));
     } else if (error.request) {
       // Request made but no response received
       return Promise.reject(new Error('لا يمكن الاتصال بالخادم. تأكد من اتصالك بالإنترنت'));
