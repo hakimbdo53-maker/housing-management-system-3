@@ -1,18 +1,17 @@
-# Netlify configuration for Vite + React production deployment
+# Netlify configuration for Vite + React (client inside /client)
+
 [build]
+  base = "client"
   command = "npm run build"
-  publish = "dist"
+  publish = "../dist"
   node_version = "20"
 
-# SPA routing - redirect all non-file requests to index.html
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
 
-# Environment variables for production
-[env]
-  [env.production]
-    VITE_API_BASE_URL = "http://housingms.runasp.net"
-    VITE_OAUTH_SERVER_URL = "http://housingms.runasp.net"
-    VITE_TRPC_URL = "http://housingms.runasp.net/api/trpc"
+[env.production]
+  VITE_API_BASE_URL = "http://housingms.runasp.net"
+  VITE_OAUTH_SERVER_URL = "http://housingms.runasp.net"
+  VITE_TRPC_URL = "http://housingms.runasp.net/api/trpc"
