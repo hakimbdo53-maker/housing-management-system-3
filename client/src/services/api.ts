@@ -312,7 +312,7 @@ export const applicationAPI = {
       // Clean national ID before sending
       const cleanedNationalId = applicationData.nationalId?.trim().replace(/\D/g, '') || null;
       
-      const response = await apiClient.post('/api/Application/Submit', {
+      const response = await apiClient.post('/api/student/applications/submit', {
         studentType: applicationData.studentType,
         fullName: applicationData.fullName,
         studentId: applicationData.studentId,
