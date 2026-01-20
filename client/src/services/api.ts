@@ -220,15 +220,27 @@ export const studentPaymentsAPI = {
 
   /**
    * Make a payment
+   * Submits payment for a specific fee using FeePaymentDto
    */
   makePayment: async (paymentData: {
-    feeId?: string;
-    amount: number;
-    paymentMethod?: string;
+    feeId: string;
+    studentId: string;
+    transactionCode: string;
+    receiptFilePath?: string;
   }) => {
     try {
-      const response = await apiClient.post('/api/student/payments', paymentData);
-      return response.data || {};
+      // Construct endpoint with feeId
+      const endpoint = `/api/student/payments/pay/${paymentData.feeId}`;
+      
+      // Prepare payload matching FeePaymentDto
+      const payload = {
+        studentId: paymentData.studentId,
+        transactionCode: paymentData.transactionCode,
+        receiptFilePath: paymentData.receiptFilePath || null,
+      };
+      
+      const response = await apiClient.post(endpoint, payload);
+      return extractObject(response.data);
     } catch (error) {
       console.error('Error making payment:', error);
       throw error;
