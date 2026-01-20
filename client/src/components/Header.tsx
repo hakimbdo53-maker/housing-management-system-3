@@ -1,6 +1,6 @@
 import React from 'react';
 import { Menu, LogOut } from 'lucide-react';
-import { useAuth } from '@/_core/hooks/useAuth';
+import { useAuthContext } from '@/contexts/AuthContext';
 import { trpc } from '@/lib/trpc';
 import { useLocation } from 'wouter';
 
@@ -14,9 +14,11 @@ interface HeaderProps {
  * 
  * Main navigation header for authenticated pages.
  * Displays logo, navigation, and user menu.
+ * 
+ * Uses AuthContext to access user data without prop drilling
  */
 export default function Header({ onMenuClick, isSidebarOpen }: HeaderProps) {
-  const { user } = useAuth();
+  const { user, logout } = useAuthContext();
   const [, navigate] = useLocation();
   const logoutMutation = trpc.auth.logout.useMutation({
     onSuccess: () => {
@@ -25,7 +27,7 @@ export default function Header({ onMenuClick, isSidebarOpen }: HeaderProps) {
   });
 
   const handleLogout = async () => {
-    await logoutMutation.mutateAsync();
+    await logout();
   };
 
   return (

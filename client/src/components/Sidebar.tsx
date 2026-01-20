@@ -1,6 +1,7 @@
 import React from 'react';
 import { X, Home, FileText, Calendar, HelpCircle, Search, User, DollarSign, AlertCircle, Bell } from 'lucide-react';
 import { useLocation } from 'wouter';
+import { useAuthContext } from '@/contexts/AuthContext';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -25,9 +26,12 @@ interface MenuItem {
  * Navigation sidebar for authenticated pages.
  * Shows main navigation menu items including student profile, fees, complaints, and notifications.
  * Navigation is organized into clear sections for better usability.
+ * 
+ * Uses AuthContext to access user data without prop drilling
  */
 export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const [location, navigate] = useLocation();
+  const { user } = useAuthContext();
 
   const menuSections: MenuSection[] = [
     {
@@ -132,6 +136,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
 
         {/* Footer Info */}
         <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-white/10 text-xs text-white/60">
+          <p className="font-semibold text-white mb-2">{user?.name || 'مستخدم'}</p>
           <p>جامعة الغردقة</p>
           <p>إدارة المدن الجامعية</p>
         </div>
