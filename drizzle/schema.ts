@@ -40,6 +40,7 @@ export const applications = sqliteTable("applications", {
   studentType: text("studentType").notNull(), // 'new' or 'old'
   fullName: text("fullName").notNull(),
   studentId: text("studentId").notNull(),
+  nationalId: text("nationalId"), // Added for searching by national ID
   email: text("email").notNull(),
   phone: text("phone").notNull(),
   major: text("major").notNull(),

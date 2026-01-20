@@ -2,8 +2,17 @@ import React, { useEffect, useState } from 'react';
 import MainLayout from '@/components/MainLayout';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import AlertBox from '@/components/AlertBox';
-import { DollarSign, AlertCircle } from 'lucide-react';
-import { studentProfileAPI } from '@/services/api';
+import FormInput from '@/components/FormInput';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { DollarSign, AlertCircle, CreditCard, X } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { studentProfileAPI, studentPaymentsAPI } from '@/services/api';
 
 interface Fee {
   id: string;
@@ -23,6 +32,12 @@ export default function Fees() {
   const [fees, setFees] = useState<Fee[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [selectedFee, setSelectedFee] = useState<Fee | null>(null);
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+  const [paymentSuccess, setPaymentSuccess] = useState(false);
+  const [transactionCode, setTransactionCode] = useState('');
+  const [receiptPath, setReceiptPath] = useState('');
 
   useEffect(() => {
     fetchFees();
@@ -46,6 +61,47 @@ export default function Fees() {
       setFees([]);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handlePaymentClick = (fee: Fee) => {
+    setSelectedFee(fee);
+    setTransactionCode('');
+    setReceiptPath('');
+    setPaymentSuccess(false);
+    setShowPaymentModal(true);
+  };
+
+  const handleSubmitPayment = async () => {
+    if (!selectedFee || !transactionCode.trim()) {
+      setError('يرجى إدخال رمز المعاملة');
+      return;
+    }
+
+    try {
+      setIsProcessingPayment(true);
+      setError(null);
+
+      const feeId = parseInt(selectedFee.id);
+      await studentPaymentsAPI.submitPayment(feeId, {
+        transactionCode: transactionCode.trim(),
+        receiptFilePath: receiptPath,
+      });
+
+      setPaymentSuccess(true);
+      setTransactionCode('');
+      setReceiptPath('');
+      
+      // Refresh fees after successful payment
+      setTimeout(() => {
+        setShowPaymentModal(false);
+        fetchFees();
+      }, 2000);
+    } catch (err: any) {
+      console.error('Error submitting payment:', err);
+      setError(err.message || 'فشل تقديم الدفع. يرجى المحاولة مرة أخرى.');
+    } finally {
+      setIsProcessingPayment(false);
     }
   };
 
@@ -145,6 +201,9 @@ export default function Fees() {
                     <th className="text-right py-3 px-4 text-[#132a4f] font-bold">
                       الحالة
                     </th>
+                    <th className="text-right py-3 px-4 text-[#132a4f] font-bold">
+                      الإجراء
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -170,6 +229,17 @@ export default function Fees() {
                         >
                           {fee.isPaid ? 'مدفوع' : 'غير مدفوع'}
                         </span>
+                      </td>
+                      <td className="py-3 px-4">
+                        {!fee.isPaid && (
+                          <button
+                            onClick={() => handlePaymentClick(fee)}
+                            className="flex items-center gap-2 px-3 py-1 bg-[#0292B3] hover:bg-[#027A95] text-white text-sm rounded-lg transition-colors"
+                          >
+                            <CreditCard size={16} />
+                            <span>دفع</span>
+                          </button>
+                        )}
                       </td>
                     </tr>
                   ))}
@@ -201,9 +271,20 @@ export default function Fees() {
                       {fee.isPaid ? 'مدفوع' : 'غير مدفوع'}
                     </span>
                   </div>
-                  <p className="text-[#132a4f] text-lg font-bold">
-                    {fee.amount.toFixed(2)} ج.م
-                  </p>
+                  <div className="flex items-center justify-between">
+                    <p className="text-[#132a4f] text-lg font-bold">
+                      {fee.amount.toFixed(2)} ج.م
+                    </p>
+                    {!fee.isPaid && (
+                      <button
+                        onClick={() => handlePaymentClick(fee)}
+                        className="flex items-center gap-2 px-3 py-1 bg-[#0292B3] hover:bg-[#027A95] text-white text-sm rounded-lg transition-colors"
+                      >
+                        <CreditCard size={16} />
+                        <span>دفع</span>
+                      </button>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
@@ -226,6 +307,100 @@ export default function Fees() {
             يرجى التواصل مع إدارة المدن الجامعية.
           </p>
         </div>
+
+        {/* Payment Modal */}
+        {showPaymentModal && selectedFee && (
+          <Dialog open={showPaymentModal} onOpenChange={setShowPaymentModal}>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle>تقديم الدفع</DialogTitle>
+                <button
+                  onClick={() => setShowPaymentModal(false)}
+                  disabled={isProcessingPayment}
+                  className="absolute right-4 top-4 text-gray-400 hover:text-gray-600"
+                >
+                  <X size={20} />
+                </button>
+              </DialogHeader>
+
+              <div className="space-y-4">
+                {/* Success Message */}
+                {paymentSuccess && (
+                  <AlertBox type="success" message="تم تقديم الدفع بنجاح! سيتم تحديث الحالة قريباً." />
+                )}
+
+                {/* Error Message */}
+                {error && !paymentSuccess && (
+                  <AlertBox type="error" message={error} />
+                )}
+
+                {!paymentSuccess && (
+                  <>
+                    {/* Fee Details */}
+                    <div className="bg-gray-50 rounded-lg p-4 border-r-4 border-[#0292B3]">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <p className="text-[#619cba] text-sm">نوع الرسوم</p>
+                          <p className="text-[#132a4f] font-bold">{selectedFee.feeType}</p>
+                        </div>
+                        <div>
+                          <p className="text-[#619cba] text-sm">المبلغ</p>
+                          <p className="text-[#132a4f] font-bold">{selectedFee.amount.toFixed(2)} ج.م</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Transaction Code Input */}
+                    <FormInput
+                      label="رمز المعاملة"
+                      type="text"
+                      placeholder="أدخل رمز المعاملة من البنك"
+                      value={transactionCode}
+                      onChange={(e) => setTransactionCode(e.target.value)}
+                      disabled={isProcessingPayment}
+                      required
+                    />
+
+                    {/* Receipt Path Input (Optional) */}
+                    <FormInput
+                      label="مسار الإيصال (اختياري)"
+                      type="text"
+                      placeholder="أدخل مسار الإيصال أو رفع الملف"
+                      value={receiptPath}
+                      onChange={(e) => setReceiptPath(e.target.value)}
+                      disabled={isProcessingPayment}
+                    />
+
+                    {/* Instructions */}
+                    <div className="bg-yellow-50 border-r-4 border-yellow-500 rounded-lg p-4">
+                      <p className="text-yellow-900 text-sm">
+                        <strong>تعليمات:</strong> أدخل رمز المعاملة الذي حصلت عليه من البنك بعد إتمام العملية.
+                      </p>
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className="flex gap-3 pt-4">
+                      <Button
+                        onClick={handleSubmitPayment}
+                        disabled={isProcessingPayment || !transactionCode.trim()}
+                        className="flex-1 bg-[#0292B3] hover:bg-[#027A95] text-white"
+                      >
+                        {isProcessingPayment ? 'جاري التقديم...' : 'تقديم الدفع'}
+                      </Button>
+                      <Button
+                        onClick={() => setShowPaymentModal(false)}
+                        disabled={isProcessingPayment}
+                        className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800"
+                      >
+                        إلغاء
+                      </Button>
+                    </div>
+                  </>
+                )}
+              </div>
+            </DialogContent>
+          </Dialog>
+        )}
       </div>
     </MainLayout>
   );

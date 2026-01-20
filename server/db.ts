@@ -142,6 +142,7 @@ export async function createApplication(
     studentType: application.studentType || "new",
     fullName: application.fullName || "",
     studentId: application.studentId || "",
+    nationalId: application.nationalId || null,
     email: application.email || "",
     phone: application.phone || "",
     major: application.major || "",
@@ -192,7 +193,88 @@ export async function getAllApplications(): Promise<Application[]> {
 export async function getApplicationsByNationalId(nationalId: string): Promise<Application[]> {
   const db = getDatabase();
   const data = db.getData();
-  return data.applications.filter(app => app.studentId === nationalId);
+  
+  // Normalize the search value: trim whitespace and remove any non-digit characters (except empty)
+  const normalizedSearchId = nationalId?.trim().replace(/\D/g, '') || '';
+  
+  if (!normalizedSearchId) {
+    return [];
+  }
+  
+  // Filter applications by national ID, normalizing both values for comparison
+  return data.applications.filter(app => {
+    if (!app.nationalId) return false;
+    
+    // Normalize stored national ID: trim and remove non-digit characters
+    const normalizedStoredId = String(app.nationalId).trim().replace(/\D/g, '');
+    
+    // Compare normalized values
+    return normalizedStoredId === normalizedSearchId;
+  });
+}
+
+/**
+ * Complaint Database Operations
+ */
+
+interface Complaint {
+  id: string;
+  userId: number;
+  title: string;
+  description: string;
+  status: 'pending' | 'resolved' | 'closed';
+  createdAt: Date;
+  resolvedAt?: Date;
+}
+
+/**
+ * Create a new complaint
+ */
+export async function createComplaint(complaint: Omit<Complaint, 'id'>): Promise<Complaint> {
+  const db = getDatabase();
+  const data = db.getData();
+
+  // Initialize complaints array if it doesn't exist
+  if (!data.complaints) {
+    data.complaints = [];
+  }
+
+  const newComplaint: Complaint = {
+    id: `complaint-${Date.now()}`,
+    ...complaint,
+  };
+
+  data.complaints.push(newComplaint);
+  db.save();
+  return newComplaint;
+}
+
+/**
+ * Get all complaints for a specific user
+ */
+export async function getComplaintsByUserId(userId: number): Promise<Complaint[]> {
+  const db = getDatabase();
+  const data = db.getData();
+
+  if (!data.complaints) {
+    data.complaints = [];
+  }
+
+  return data.complaints.filter(complaint => complaint.userId === userId);
+}
+
+/**
+ * Get a specific complaint by ID
+ */
+export async function getComplaintById(id: string): Promise<Complaint | undefined> {
+  const db = getDatabase();
+  const data = db.getData();
+
+  if (!data.complaints) {
+    data.complaints = [];
+  }
+
+  return data.complaints.find(complaint => complaint.id === id);
 }
 
 // TODO: add more feature queries here as your schema grows.

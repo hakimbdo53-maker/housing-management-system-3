@@ -6,9 +6,11 @@ import { useLocation } from 'wouter';
 import { User, Lock, IdCard } from 'lucide-react';
 import AuthLayout from '@/components/AuthLayout';
 import FormInput from '@/components/FormInput';
+import ValidatedInput from '@/components/ValidatedInput';
 import AlertBox from '@/components/AlertBox';
 import { Button } from '@/components/ui/button';
 import { trpc } from '@/lib/trpc';
+import { validatePhone, validateNId } from '@/shared/validation';
 
 // Validation schema - Unified field names
 const signupSchema = z.object({
@@ -18,8 +20,12 @@ const signupSchema = z.object({
   confirmPassword: z.string().min(1, 'تأكيد كلمة المرور مطلوب'),
   // Unified Profile Data (stored in Backend)
   fullName: z.string().min(3, 'الاسم الكامل مطلوب'),
-  nationalId: z.string().min(1, 'الرقم القومي مطلوب'),
-  phoneNumber: z.string().min(10, 'رقم الهاتف مطلوب'),
+  nationalId: z.string()
+    .min(1, 'الرقم القومي مطلوب')
+    .regex(/^[0-9]{14}$/, 'الرقم القومي يجب أن يكون 14 رقم بالضبط'),
+  phoneNumber: z.string()
+    .min(1, 'رقم الهاتف مطلوب')
+    .regex(/^01[0-9]{9}$/, 'رقم الهاتف يجب أن يكون 11 رقم يبدأ بـ 01'),
   email: z.string().email('البريد الإلكتروني غير صحيح'),
 }).refine((data) => data.password === data.confirmPassword, {
   message: 'كلمات المرور غير متطابقة',
@@ -36,10 +42,13 @@ type SignupFormData = z.infer<typeof signupSchema>;
 export default function Signup() {
   const [, navigate] = useLocation();
   const [generalError, setGeneralError] = useState<string | null>(null);
+  const [nationalIdError, setNationalIdError] = useState<string>('');
+  const [phoneError, setPhoneError] = useState<string>('');
 
   const {
     register,
     handleSubmit,
+    setValue,
     formState: { errors },
   } = useForm<SignupFormData>({
     resolver: zodResolver(signupSchema),
@@ -127,22 +136,42 @@ export default function Signup() {
         />
 
         {/* National ID Field - Unified Profile Data */}
-        <FormInput
+        <ValidatedInput
           label="الرقم القومي"
-          placeholder="أدخل الرقم القومي أو رقم الإقامة"
-          error={errors.nationalId?.message}
+          name="nationalId"
+          placeholder="14 رقم - مثال: 30303030303030"
+          validationType="nationalId"
+          maxLength={14}
+          error={nationalIdError || errors.nationalId?.message}
+          onBlur={() => {
+            const value = register('nationalId').name;
+            // Will be validated by react-hook-form
+          }}
+          onChange={(value) => {
+            setValue('nationalId', value);
+            const validation = validateNId(value);
+            setNationalIdError(validation.isValid ? '' : validation.message);
+          }}
           required
-          {...register('nationalId')}
         />
 
         {/* Phone Number Field - Unified Profile Data */}
-        <FormInput
+        <ValidatedInput
           label="رقم الهاتف"
-          type="tel"
-          placeholder="أدخل رقم الهاتف"
-          error={errors.phoneNumber?.message}
+          name="phoneNumber"
+          placeholder="11 رقم - مثال: 01000000000"
+          validationType="phone"
+          maxLength={11}
+          error={phoneError || errors.phoneNumber?.message}
+          onBlur={() => {
+            // Will be validated by react-hook-form
+          }}
+          onChange={(value) => {
+            setValue('phoneNumber', value);
+            const validation = validatePhone(value);
+            setPhoneError(validation.isValid ? '' : validation.message);
+          }}
           required
-          {...register('phoneNumber')}
         />
 
         {/* Email Field - Unified Profile Data */}

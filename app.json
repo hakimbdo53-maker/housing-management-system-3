@@ -85,6 +85,86 @@
       "createdAt": "2026-01-19T15:00:53.876Z",
       "updatedAt": "2026-01-19T15:00:53.876Z",
       "lastSignedIn": "2026-01-19T15:00:53.876Z"
+    },
+    {
+      "id": 7,
+      "openId": null,
+      "username": "حكيييم",
+      "password": "202020",
+      "studentId": "2020200",
+      "fullName": "حكيم عيدالريحيم عبده",
+      "email": "hakim444@gmail.com",
+      "phoneNumber": "0111111555",
+      "nationalId": "3030303030303",
+      "loginMethod": null,
+      "role": "user",
+      "createdAt": "2026-01-19T17:39:40.216Z",
+      "updatedAt": "2026-01-19T17:39:40.216Z",
+      "lastSignedIn": "2026-01-19T17:39:40.216Z"
+    },
+    {
+      "id": 8,
+      "openId": null,
+      "username": "محمد",
+      "password": "202020",
+      "studentId": "226292929",
+      "fullName": "حكيم عبدالرحيم عبده",
+      "email": "ghdgxfhxf@gmail.com",
+      "phoneNumber": "01234567891",
+      "nationalId": "3030303003002",
+      "loginMethod": null,
+      "role": "user",
+      "createdAt": "2026-01-19T22:47:05.377Z",
+      "updatedAt": "2026-01-19T22:47:05.377Z",
+      "lastSignedIn": "2026-01-19T22:47:05.377Z"
+    },
+    {
+      "id": 9,
+      "openId": null,
+      "username": "hakimabdelrahimw",
+      "password": "202020",
+      "studentId": "202020",
+      "fullName": "حكيممم حكيم",
+      "email": "hakimabdelrahim987@yahoo.comd",
+      "phoneNumber": "01111111111",
+      "nationalId": "30303030303000",
+      "loginMethod": null,
+      "role": "user",
+      "createdAt": "2026-01-19T23:12:31.229Z",
+      "updatedAt": "2026-01-19T23:12:31.229Z",
+      "lastSignedIn": "2026-01-19T23:12:31.229Z"
+    },
+    {
+      "id": 10,
+      "openId": null,
+      "username": "hakimabdelrahimww",
+      "password": "202020",
+      "studentId": "202020",
+      "fullName": "حكيممم حكيم",
+      "email": "ghdgxfhxf@gmail.com",
+      "phoneNumber": "01111111111",
+      "nationalId": "77303080332000",
+      "loginMethod": null,
+      "role": "user",
+      "createdAt": "2026-01-19T23:52:24.860Z",
+      "updatedAt": "2026-01-19T23:52:24.860Z",
+      "lastSignedIn": "2026-01-19T23:52:24.860Z"
+    },
+    {
+      "id": 11,
+      "openId": null,
+      "username": "7hakimabdelrahimww",
+      "password": "202020",
+      "studentId": "202020",
+      "fullName": "حكيممم حكيم",
+      "email": "hakimabdelrahim987@yahoo.com",
+      "phoneNumber": "01111111112",
+      "nationalId": "77303080332005",
+      "loginMethod": null,
+      "role": "user",
+      "createdAt": "2026-01-20T00:23:45.295Z",
+      "updatedAt": "2026-01-20T00:23:45.295Z",
+      "lastSignedIn": "2026-01-20T00:23:45.295Z"
     }
   ],
   "applications": [
@@ -123,8 +203,45 @@
       "status": "submitted",
       "submittedAt": "2026-01-18T18:43:13.475Z",
       "updatedAt": "2026-01-18T18:43:13.475Z"
+    },
+    {
+      "id": 3,
+      "userId": 11,
+      "studentType": "new",
+      "fullName": "حكيممم حكيم",
+      "studentId": "77303080332005",
+      "nationalId": "77303080332005",
+      "email": "hakimabdelrahim987@yahoo.com",
+      "phone": "01111111112",
+      "major": "ءءءءءءءءءءءءءءءءءءءءءءءءءءءءءءءءءءءءءءءءءسلابء",
+      "gpa": "88",
+      "address": "الغردقه",
+      "governorate": "السويس",
+      "familyIncome": "N/A",
+      "additionalInfo": "ببب",
+      "status": "submitted",
+      "submittedAt": "2026-01-20T00:57:31.382Z",
+      "updatedAt": "2026-01-20T00:57:31.382Z"
     }
   ],
-  "nextUserId": 7,
-  "nextApplicationId": 3
+  "nextUserId": 12,
+  "nextApplicationId": 4,
+  "complaints": [
+    {
+      "id": "complaint-1768865531615",
+      "userId": 9,
+      "title": "ررررر ب ",
+      "description": "ب رؤربررييررررر",
+      "status": "pending",
+      "createdAt": "2026-01-19T23:32:11.615Z"
+    },
+    {
+      "id": "complaint-1768871392981",
+      "userId": 11,
+      "title": "اسقاصا",
+      "description": "سقللللللللللللل",
+      "status": "pending",
+      "createdAt": "2026-01-20T01:09:52.981Z"
+    }
+  ]
 }

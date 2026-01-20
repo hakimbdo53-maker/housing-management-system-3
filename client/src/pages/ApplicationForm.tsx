@@ -16,6 +16,7 @@ import { ArrowRight, FileText } from 'lucide-react';
 const applicationSchema = z.object({
   fullName: z.string().min(3, 'الاسم مطلوب'),
   studentId: z.string().min(1, 'الرقم الجامعي مطلوب'),
+  nationalId: z.string().optional(),
   email: z.string().email('البريد الإلكتروني غير صحيح'),
   phone: z.string().min(10, 'رقم الهاتف غير صحيح'),
   major: z.string().min(1, 'التخصص مطلوب'),

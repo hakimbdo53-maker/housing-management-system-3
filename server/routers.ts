@@ -6,6 +6,12 @@ import { z } from "zod";
 import * as db from "./db";
 import { sdk } from "./_core/sdk";
 import { TRPCError } from "@trpc/server";
+import {
+  applicationSubmissionSchema,
+  studentRegistrationSchema,
+  studentProfileUpdateSchema,
+  formatValidationError,
+} from "./validationSchemas";
 
 // Helper to ensure user is authenticated
 const protectedProcedure = publicProcedure.use(({ ctx, next }) => {
@@ -98,28 +104,59 @@ export const appRouter = router({
     }),
   }),
 
+  // Complaints Router
+  complaints: router({
+    // Get all complaints for the logged-in student
+    list: protectedProcedure.query(async ({ ctx }) => {
+      try {
+        const complaints = await db.getComplaintsByUserId(ctx.user!.id);
+        return complaints;
+      } catch (error) {
+        console.error('Error fetching complaints:', error);
+        return [];
+      }
+    }),
+
+    // Submit a new complaint
+    create: protectedProcedure
+      .input(z.object({
+        title: z.string().min(3, 'عنوان الشكوى مطلوب'),
+        description: z.string().min(10, 'وصف الشكوى مطلوب'),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        try {
+          const complaint = await db.createComplaint({
+            userId: ctx.user!.id,
+            title: input.title,
+            description: input.description,
+            status: 'pending',
+            createdAt: new Date(),
+          });
+
+          return { success: true, complaint };
+        } catch (error) {
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: "فشل تقديم الشكوى. يرجى المحاولة لاحقاً.",
+          });
+        }
+      }),
+  }),
+
   // Applications Router
   applications: router({
     create: protectedProcedure
-      .input(z.object({
-        studentType: z.enum(['new', 'old']),
-        fullName: z.string().min(3),
-        studentId: z.string().min(1),
-        email: z.string().email().optional(),
-        phone: z.string().min(10),
-        major: z.string().min(1),
-        gpa: z.string().min(1),
-        address: z.string().min(1),
-        governorate: z.string().min(1),
-        familyIncome: z.string().min(1),
-        additionalInfo: z.string().optional(),
-      }))
+      .input(applicationSubmissionSchema)
       .mutation(async ({ input, ctx }) => {
+        // Validation is automatically performed by Zod schema
+        // If validation fails, tRPC will throw a 400 error automatically
+        
         const application = await db.createApplication({
           userId: ctx.user!.id,
           studentType: input.studentType,
           fullName: input.fullName,
           studentId: input.studentId,
+          nationalId: input.nationalId,
           email: input.email,
           phone: input.phone,
           major: input.major,

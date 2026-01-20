@@ -4,7 +4,7 @@ import LoadingSpinner from '@/components/LoadingSpinner';
 import AlertBox from '@/components/AlertBox';
 import { Button } from '@/components/ui/button';
 import { useLocation } from 'wouter';
-import { User, Bell, AlertCircle, FileText } from 'lucide-react';
+import { User, Bell, AlertCircle, FileText, Edit2 } from 'lucide-react';
 import { useAuth } from '@/_core/hooks/useAuth';
 
 interface Notification {
@@ -68,7 +68,16 @@ export default function Profile() {
 
         {/* Profile Information - Using Unified Field Names */}
         <div className="bg-white rounded-lg shadow-md p-8">
-          <h2 className="text-2xl font-bold text-[#132a4f] mb-6">بيانات الطالب</h2>
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-2xl font-bold text-[#132a4f]">بيانات الطالب</h2>
+            <Button
+              onClick={() => navigate('/edit-profile')}
+              className="flex items-center gap-2 bg-[#0292B3] hover:bg-[#027A95] text-white"
+            >
+              <Edit2 size={18} />
+              <span>تعديل البيانات</span>
+            </Button>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Full Name */}
             <div>

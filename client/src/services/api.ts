@@ -167,6 +167,49 @@ export const studentProfileAPI = {
       return [];
     }
   },
+
+  /**
+   * Update student's own profile
+   * @param profileData - Updated profile data
+   */
+  updateProfile: async (profileData: any) => {
+    try {
+      const response = await apiClient.put(
+        '/api/Student/self-update',
+        profileData
+      );
+      return response.data || {};
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      throw error;
+    }
+  },
+};
+
+/**
+ * Student Payments API Calls
+ */
+export const studentPaymentsAPI = {
+  /**
+   * Submit payment for a fee
+   * @param feeId - The fee ID to pay for
+   * @param paymentData - Payment data (transaction code, receipt file path)
+   */
+  submitPayment: async (feeId: number, paymentData: {
+    transactionCode: string;
+    receiptFilePath?: string;
+  }) => {
+    try {
+      const response = await apiClient.post(
+        `/api/student/payments/pay/${feeId}`,
+        paymentData
+      );
+      return response.data || {};
+    } catch (error) {
+      console.error('Error submitting payment:', error);
+      throw error;
+    }
+  },
 };
 
 /**
@@ -203,8 +246,167 @@ export const studentComplaintsAPI = {
   },
 };
 
+/**
+ * Application API Calls - External API Integration
+ */
+export const applicationAPI = {
+  /**
+   * Submit a new housing application to external API
+   * @param applicationData - Application form data
+   */
+  submitApplication: async (applicationData: {
+    studentType: 'new' | 'old';
+    fullName: string;
+    studentId: string;
+    nationalId?: string | null;
+    email: string;
+    phone: string;
+    major: string;
+    gpa: string;
+    address: string;
+    governorate: string;
+    familyIncome: string;
+    additionalInfo?: string | null;
+  }) => {
+    try {
+      // Clean national ID before sending
+      const cleanedNationalId = applicationData.nationalId?.trim().replace(/\D/g, '') || null;
+      
+      const response = await apiClient.post('/api/Application/Submit', {
+        studentType: applicationData.studentType,
+        fullName: applicationData.fullName,
+        studentId: applicationData.studentId,
+        nationalId: cleanedNationalId,
+        email: applicationData.email,
+        phone: applicationData.phone,
+        major: applicationData.major,
+        gpa: applicationData.gpa,
+        address: applicationData.address,
+        governorate: applicationData.governorate,
+        familyIncome: applicationData.familyIncome,
+        additionalInfo: applicationData.additionalInfo || null,
+      });
+      
+      // Handle different response formats
+      if (response.data?.data) {
+        return response.data.data;
+      }
+      return response.data || {};
+    } catch (error: any) {
+      console.error('Error submitting application:', error);
+      const errorMessage = error.response?.data?.message || error.response?.data?.error || error.message || 'فشل تقديم الطلب';
+      throw new Error(errorMessage);
+    }
+  },
+
+  /**
+   * Search for application by national ID from external API
+   * @param nationalId - Student's national ID (14 digits)
+   */
+  searchByNationalId: async (nationalId: string): Promise<any[]> => {
+    try {
+      // Clean national ID: remove spaces and non-digit characters
+      const cleanedNationalId = nationalId.trim().replace(/\D/g, '');
+      
+      if (!cleanedNationalId || cleanedNationalId.length !== 14) {
+        throw new Error('الرقم القومي يجب أن يكون 14 رقم');
+      }
+
+      // Try different possible endpoints
+      const endpoints = [
+        `/api/Application/SearchByNationalId/${cleanedNationalId}`,
+        `/api/Application/GetByNationalId/${cleanedNationalId}`,
+        `/api/Application/NationalId/${cleanedNationalId}`,
+        `/api/Application?nationalId=${cleanedNationalId}`,
+      ];
+
+      let lastError: any = null;
+      
+      for (const endpoint of endpoints) {
+        try {
+          const response = await apiClient.get(endpoint);
+          
+          // Handle different response formats
+          const data = extractArray(response.data);
+          if (data.length > 0) {
+            return data;
+          }
+          
+          // Try single object format
+          if (response.data && typeof response.data === 'object' && !Array.isArray(response.data)) {
+            return [response.data];
+          }
+        } catch (err: any) {
+          lastError = err;
+          // Continue to next endpoint
+          continue;
+        }
+      }
+
+      // If all endpoints failed, check the error type
+      if (lastError?.response?.status === 404) {
+        throw new Error('لم يتم العثور على طلب بهذا الرقم القومي');
+      }
+      
+      if (lastError?.code === 'ECONNREFUSED' || lastError?.code === 'ENOTFOUND') {
+        throw new Error('لا يمكن الاتصال بخادم البحث. تأكد من أن API الخارجي متاح.');
+      }
+      
+      if (lastError?.response?.status === 401 || lastError?.response?.status === 403) {
+        throw new Error('ليس لديك صلاحية للوصول إلى هذه البيانات');
+      }
+      
+      if (lastError?.response?.status >= 500) {
+        throw new Error('خطأ في الخادم. يرجى المحاولة مرة أخرى لاحقاً');
+      }
+
+      // If we get here, all endpoints failed
+      throw new Error('فشل البحث عن الطلب. تأكد من الرقم القومي والمحاولة مرة أخرى.');
+    } catch (error: any) {
+      console.error('Error searching application:', error);
+      
+      // If error already has a friendly message, use it
+      if (error.message && !error.message.includes('Error:') && !error.message.includes('Network Error')) {
+        throw error;
+      }
+      
+      // Otherwise, create a user-friendly message
+      const errorMessage = error.response?.data?.message 
+        || error.response?.data?.error 
+        || error.message 
+        || 'فشل البحث عن الطلب. يرجى المحاولة مرة أخرى.';
+      
+      throw new Error(errorMessage);
+    }
+  },
+
+  /**
+   * Get application status by national ID
+   */
+  getApplicationStatus: async (nationalId: string) => {
+    try {
+      const applications = await applicationAPI.searchByNationalId(nationalId);
+      if (applications.length === 0) {
+        return null;
+      }
+      // Return the most recent application
+      const sorted = [...applications].sort((a, b) => {
+        const dateA = new Date(a.submittedAt || a.createdAt || a.date || 0).getTime();
+        const dateB = new Date(b.submittedAt || b.createdAt || b.date || 0).getTime();
+        return dateB - dateA;
+      });
+      return sorted[0];
+    } catch (error) {
+      console.error('Error getting application status:', error);
+      throw error;
+    }
+  },
+};
+
 // Default export with all APIs organized
 export default {
   profile: studentProfileAPI,
   complaints: studentComplaintsAPI,
+  payments: studentPaymentsAPI,
+  applications: applicationAPI,
 };

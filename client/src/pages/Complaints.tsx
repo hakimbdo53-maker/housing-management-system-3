@@ -9,15 +9,15 @@ import { AlertCircle, Plus } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { studentComplaintsAPI } from '@/services/api';
+import { trpc } from '@/lib/trpc';
 
 interface Complaint {
   id: string;
   title: string;
   description: string;
   status: 'pending' | 'resolved' | 'closed';
-  createdAt: string;
-  resolvedAt?: string;
+  createdAt: Date;
+  resolvedAt?: Date;
 }
 
 const complaintSchema = z.object({
@@ -34,8 +34,6 @@ type ComplaintFormData = z.infer<typeof complaintSchema>;
  */
 export default function Complaints() {
   const [complaints, setComplaints] = useState<Complaint[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
@@ -49,52 +47,33 @@ export default function Complaints() {
     resolver: zodResolver(complaintSchema),
   });
 
-  useEffect(() => {
-    fetchComplaints();
-  }, []);
-
-  const fetchComplaints = async () => {
-    try {
-      setIsLoading(true);
-      setError(null);
-
-      const complaintsData = await studentComplaintsAPI.getComplaints();
-      // Ensure complaintsData is an array
-      if (Array.isArray(complaintsData)) {
-        setComplaints(complaintsData);
-      } else {
-        setComplaints([]);
-      }
-    } catch (err) {
-      console.error('Error fetching complaints:', err);
-      setError('فشل تحميل قائمة الشكاوى. يرجى المحاولة لاحقاً.');
-      setComplaints([]);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const onSubmit = async (data: ComplaintFormData) => {
-    try {
-      setIsSubmitting(true);
-      setError(null);
-
-      await studentComplaintsAPI.submitComplaint(data.title, data.description);
-
+  // tRPC queries and mutations
+  const complaintsQuery = trpc.complaints.list.useQuery();
+  const createComplaintMutation = trpc.complaints.create.useMutation({
+    onSuccess: () => {
+      complaintsQuery.refetch();
       setSuccessMessage('تم تقديم الشكوى بنجاح. شكراً لتواصلك معنا.');
       reset();
       setShowForm(false);
+      setTimeout(() => setSuccessMessage(null), 3000);
+    },
+    onError: (error) => {
+      setError(error.message || 'فشل تقديم الشكوى. يرجى المحاولة لاحقاً.');
+    }
+  });
 
-      // Refresh complaints list
-      setTimeout(() => {
-        fetchComplaints();
-        setSuccessMessage(null);
-      }, 2000);
+  useEffect(() => {
+    if (complaintsQuery.data) {
+      setComplaints(complaintsQuery.data as Complaint[]);
+    }
+  }, [complaintsQuery.data]);
+
+  const onSubmit = async (data: ComplaintFormData) => {
+    try {
+      setError(null);
+      await createComplaintMutation.mutateAsync(data);
     } catch (err) {
       console.error('Error submitting complaint:', err);
-      setError('فشل تقديم الشكوى. يرجى المحاولة لاحقاً.');
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
@@ -124,7 +103,7 @@ export default function Complaints() {
     }
   };
 
-  if (isLoading) {
+  if (complaintsQuery.isLoading) {
     return (
       <MainLayout>
         <LoadingSpinner message="جاري تحميل الشكاوى..." />
@@ -196,10 +175,10 @@ export default function Complaints() {
               <div className="flex gap-4 pt-4">
                 <Button
                   type="submit"
-                  disabled={isSubmitting}
+                  disabled={createComplaintMutation.isPending}
                   className="flex-1 bg-gradient-to-r from-[#0d3a52] to-[#0d5a7a] hover:from-[#0d5a7a] hover:to-[#0d7a9a] text-white font-semibold py-3 rounded-lg transition-all duration-200 disabled:opacity-50"
                 >
-                  {isSubmitting ? 'جاري الإرسال...' : 'تقديم الشكوى'}
+                  {createComplaintMutation.isPending ? 'جاري الإرسال...' : 'تقديم الشكوى'}
                 </Button>
 
                 <Button

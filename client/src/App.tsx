@@ -17,6 +17,7 @@ import ApplicationForm from "./pages/ApplicationForm";
 import NewStudentApplicationForm from "./pages/NewStudentApplicationForm";
 import OldStudentApplicationForm from "./pages/OldStudentApplicationForm";
 import Profile from "./pages/Profile";
+import EditProfile from "./pages/EditProfile";
 import Fees from "./pages/Fees";
 import Complaints from "./pages/Complaints";
 import Notifications from "./pages/Notifications";
@@ -72,6 +73,7 @@ function Router() {
       <Route path={"/old-student-form"} component={() => <ProtectedRoute component={OldStudentApplicationForm} />} />
       <Route path={"/application-form/:type"} component={() => <ProtectedRoute component={ApplicationForm} />} />
       <Route path={"/profile"} component={() => <ProtectedRoute component={Profile} />} />
+      <Route path={"/edit-profile"} component={() => <ProtectedRoute component={EditProfile} />} />
       <Route path={"/fees"} component={() => <ProtectedRoute component={Fees} />} />
       <Route path={"/complaints"} component={() => <ProtectedRoute component={Complaints} />} />
       <Route path={"/notifications"} component={() => <ProtectedRoute component={Notifications} />} />

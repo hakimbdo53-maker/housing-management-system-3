@@ -28,6 +28,7 @@ const newStudentSchema = z.object({
   fatherName: z.string().optional(),
   fatherNationalID: z.string().optional(),
   fatherJob: z.string().optional(),
+  fatherPhone: z.string().optional(),
   fatherGovernorate: z.string().optional(),
   fatherResidenceCity: z.string().optional(),
   fatherAddress: z.string().optional(),
@@ -256,7 +257,6 @@ export default function NewStudentApplicationForm() {
                   label="النوع"
                   placeholder="اختر النوع"
                   options={[
-                    { value: '', label: 'اختر النوع' },
                     { value: 'ذكر', label: 'ذكر' },
                     { value: 'أنثى', label: 'أنثى' },
                   ]}
@@ -267,7 +267,6 @@ export default function NewStudentApplicationForm() {
                   label="الديانة"
                   placeholder="اختر الديانة"
                   options={[
-                    { value: '', label: 'اختر الديانة' },
                     { value: 'مسلم', label: 'مسلم' },
                     { value: 'مسيحي', label: 'مسيحي' },
                   ]}
@@ -325,7 +324,6 @@ export default function NewStudentApplicationForm() {
                   label="صلة ولي الأمر"
                   placeholder="اختر صلة ولي الأمر"
                   options={[
-                    { value: '', label: 'اختر صلة ولي الأمر' },
                     { value: 'أب', label: 'أب' },
                     { value: 'أم', label: 'أم' },
                     { value: 'أخ', label: 'أخ' },
@@ -381,6 +379,15 @@ export default function NewStudentApplicationForm() {
                   label="عنوان الأب بالتفصيل"
                   placeholder="العنوان بالتفصيل"
                   {...register('fatherAddress')}
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
+                <FormInput
+                  label="رقم الهاتف للأب"
+                  type="tel"
+                  placeholder="رقم الهاتف"
+                  {...register('fatherPhone')}
                 />
               </div>
 
@@ -455,7 +462,6 @@ export default function NewStudentApplicationForm() {
                   label="المستوى الدراسي"
                   placeholder="اختر المستوى"
                   options={[
-                    { value: '', label: 'اختر المستوى' },
                     { value: 'first', label: 'الأولى' },
                     { value: 'second', label: 'الثانية' },
                     { value: 'third', label: 'الثالثة' },
@@ -512,9 +518,8 @@ export default function NewStudentApplicationForm() {
                   label="نوع السكن"
                   placeholder="اختر نوع السكن"
                   options={[
-                    { value: '', label: 'اختر نوع السكن' },
-                    { value: 'جديد', label: 'جديد' },
-                    { value: 'مستمر', label: 'مستمر' },
+                    { value: 'withFood', label: 'بتغذية' },
+                    { value: 'withoutFood', label: 'بدون تغذية' },
                   ]}
                   {...register('housingType')}
                 />
@@ -523,8 +528,6 @@ export default function NewStudentApplicationForm() {
                   label="ذوي احتياجات خاصة"
                   placeholder="اختر"
                   options={[
-                    { value: '', label: 'اختر' },
-                    { value: 'نعم', label: 'نعم' },
                     { value: 'لا', label: 'لا' },
                   ]}
                   {...register('needsSpecial')}
