@@ -16,37 +16,181 @@ import { useAuth } from '@/_core/hooks/useAuth';
 import { applicationAPI } from '@/services/api';
 
 const newStudentSchema = z.object({
-  nationalID: z.string().min(1, 'الرقم القومي مطلوب').regex(/^\d+$/, 'أرقام فقط'),
-  studentName: z.string().min(3, 'الاسم الرباعي مطلوب'),
-  mobile: z.string().min(10, 'رقم الهاتف مطلوب').regex(/^\d+$/, 'أرقام فقط'),
-  email: z.string().email('البريد الإلكتروني غير صحيح').optional().or(z.literal('')),
+  // National ID: Exactly 14 digits
+  nationalID: z
+    .string()
+    .min(1, 'الرقم القومي مطلوب')
+    .regex(/^\d+$/, 'يجب أن يحتوي على أرقام فقط')
+    .refine(
+      (val) => val.replace(/\D/g, '').length === 14,
+      'الرقم القومي يجب أن يكون 14 رقم بالضبط'
+    ),
+
+  // Full name: Arabic letters only, no numbers or special characters
+  studentName: z
+    .string()
+    .min(1, 'الاسم الرباعي مطلوب')
+    .regex(
+      /^[\u0600-\u06FF\s]+$/,
+      'يجب أن يكون الاسم باللغة العربية فقط بدون أرقام أو رموز خاصة'
+    )
+    .refine(
+      (val) => val.trim().split(/\s+/).length >= 2,
+      'يجب إدخال الاسم الرباعي (اسم أول على الأقل)'
+    ),
+
+  // Phone number: Starts with 01 and exactly 11 digits
+  mobile: z
+    .string()
+    .min(1, 'رقم الهاتف مطلوب')
+    .regex(/^\d+$/, 'يجب أن يحتوي على أرقام فقط')
+    .refine(
+      (val) => val.replace(/\D/g, '').length === 11,
+      'رقم الهاتف يجب أن يكون 11 رقم بالضبط'
+    )
+    .refine(
+      (val) => val.startsWith('01') || val.startsWith('+201'),
+      'رقم الهاتف يجب أن يبدأ بـ 01 أو +201'
+    ),
+
+  // Email: Valid email format
+  email: z
+    .string()
+    .optional()
+    .or(z.literal(''))
+    .refine(
+      (val) => {
+        if (!val || val === '') return true;
+        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val);
+      },
+      'البريد الإلكتروني غير صحيح'
+    ),
+
   birthDate: z.string().optional(),
+
   gender: z.string().optional(),
+
   religion: z.string().optional(),
+
   governorate: z.string().min(1, 'المحافظة مطلوبة'),
+
   residenceCity: z.string().optional(),
+
   address: z.string().min(1, 'العنوان مطلوب'),
+
+  // Guardian relation: Optional
   guardianRelation: z.string().optional(),
-  fatherName: z.string().optional(),
-  fatherNationalID: z.string().optional(),
+
+  // Father name: Arabic letters only (optional but if provided must be valid)
+  fatherName: z
+    .string()
+    .optional()
+    .refine(
+      (val) => {
+        if (!val || val === '') return true;
+        return /^[\u0600-\u06FF\s]+$/.test(val);
+      },
+      'اسم الأب يجب أن يكون باللغة العربية فقط'
+    ),
+
+  // Father national ID: 14 digits (optional but if provided must be valid)
+  fatherNationalID: z
+    .string()
+    .optional()
+    .refine(
+      (val) => {
+        if (!val || val === '') return true;
+        const cleaned = val.replace(/\D/g, '');
+        return cleaned.length === 14 && /^\d+$/.test(val);
+      },
+      'الرقم القومي للأب يجب أن يكون 14 رقم'
+    ),
+
   fatherJob: z.string().optional(),
+
   fatherGovernorate: z.string().optional(),
+
   fatherResidenceCity: z.string().optional(),
+
   fatherAddress: z.string().optional(),
-  guardianName: z.string().optional(),
-  guardianNationalID: z.string().optional(),
-  guardianPhone: z.string().optional(),
+
+  // Guardian name: Arabic letters only (optional but if provided must be valid)
+  guardianName: z
+    .string()
+    .optional()
+    .refine(
+      (val) => {
+        if (!val || val === '') return true;
+        return /^[\u0600-\u06FF\s]+$/.test(val);
+      },
+      'اسم ولي الأمر يجب أن يكون باللغة العربية فقط'
+    ),
+
+  // Guardian national ID: 14 digits (optional but if provided must be valid)
+  guardianNationalID: z
+    .string()
+    .optional()
+    .refine(
+      (val) => {
+        if (!val || val === '') return true;
+        const cleaned = val.replace(/\D/g, '');
+        return cleaned.length === 14 && /^\d+$/.test(val);
+      },
+      'الرقم القومي لولي الأمر يجب أن يكون 14 رقم'
+    ),
+
+  // Guardian phone: 11 digits starting with 01 (optional but if provided must be valid)
+  guardianPhone: z
+    .string()
+    .optional()
+    .refine(
+      (val) => {
+        if (!val || val === '') return true;
+        const cleaned = val.replace(/\D/g, '');
+        return cleaned.length === 11 && (val.startsWith('01') || val.startsWith('+201'));
+      },
+      'رقم الهاتف يجب أن يكون 11 رقم ويبدأ بـ 01'
+    ),
+
   guardianGovernorate: z.string().optional(),
+
   guardianResidenceCity: z.string().optional(),
+
   guardianAddress: z.string().optional(),
+
   faculty: z.string().min(1, 'الكلية مطلوبة'),
-  department: z.string().min(1, 'التخصص مطلوب'),
+
+  department: z
+    .string()
+    .min(1, 'التخصص مطلوب')
+    .regex(
+      /^[\u0600-\u06FF\w\s]+$/,
+      'التخصص يجب أن يكون بصيغة صحيحة'
+    ),
+
   academicYear: z.string().min(1, 'المستوى الدراسي مطلوب'),
+
   highschoolType: z.string().optional(),
+
   highschoolStream: z.string().optional(),
-  highschoolPercentage: z.string().optional(),
+
+  // GPA: Number between 0 and 100
+  highschoolPercentage: z
+    .string()
+    .optional()
+    .refine(
+      (val) => {
+        if (!val || val === '') return true;
+        const num = parseFloat(val);
+        return !isNaN(num) && num >= 0 && num <= 100;
+      },
+      'النسبة المئوية يجب أن تكون رقم بين 0 و 100'
+    ),
+
   housingType: z.string().optional(),
+
   needsSpecial: z.string().optional(),
+
   housingNotes: z.string().optional(),
 });
 
