@@ -13,29 +13,150 @@ import { API_BASE_URL } from '@/const';
  */
 
 /**
+ * Validates that API response has actual content
+ * Throws clear error if response is empty or null
+ */
+const validateResponse = (response: any, endpoint: string): void => {
+  if (response === null || response === undefined) {
+    throw new Error(`API endpoint ${endpoint} returned empty response (null/undefined)`);
+  }
+  
+  if (typeof response === 'string' && response.trim() === '') {
+    throw new Error(`API endpoint ${endpoint} returned empty string`);
+  }
+};
+
+/**
  * Utility function to extract array from API response
  * 
  * Handles different response wrapper formats:
  * - { data: [...] }
  * - { data: { data: [...] } }
- * - { isSuccess: true, data: [...] }
+ * - Direct array: [...]
+ * 
+ * Returns empty array if no data found (graceful degradation)
+ * Logs warnings for empty results
  */
-export const extractArray = (response: any): any[] => {
-  if (!response) return [];
+export const extractArray = (response: any, endpoint: string = 'unknown'): any[] => {
+  try {
+    validateResponse(response, endpoint);
+  } catch (error) {
+    // Don't throw for arrays - just return empty array
+    console.warn(String(error));
+    return [];
+  }
   
   // Direct array response
-  if (Array.isArray(response)) return response;
+  if (Array.isArray(response)) {
+    if (response.length === 0) {
+      console.warn(`API endpoint ${endpoint} returned empty array`);
+    }
+    return response;
+  }
   
   // Wrapped in data property: { data: [...] }
-  if (Array.isArray(response?.data)) return response.data;
+  if (Array.isArray(response?.data)) {
+    if (response.data.length === 0) {
+      console.warn(`API endpoint ${endpoint} returned empty data array`);
+    }
+    return response.data;
+  }
   
   // Double wrapped: { data: { data: [...] } }
-  if (Array.isArray(response?.data?.data)) return response.data.data;
+  if (Array.isArray(response?.data?.data)) {
+    if (response.data.data.length === 0) {
+      console.warn(`API endpoint ${endpoint} returned empty nested data array`);
+    }
+    return response.data.data;
+  }
   
   // Single object response (convert to array)
-  if (response?.id || response?.name || response?.title) return [response];
+  if (response?.id || response?.studentId || response?.notificationId || response?.feeId) {
+    return [response];
+  }
   
+  // Log warning but don't throw - allow graceful degradation
+  console.warn(`API endpoint ${endpoint} returned response with no array data: ${JSON.stringify(response).substring(0, 200)}`);
   return [];
+};
+
+/**
+ * Validates and extracts single object response
+ * Throws error if response is empty, null, or invalid
+ */
+export const extractObject = (response: any, endpoint: string = 'unknown'): any => {
+  try {
+    validateResponse(response, endpoint);
+  } catch (error) {
+    throw error; // Throw for objects - they must have data
+  }
+  
+  // If response has nested data property and it's an object
+  if (response?.data && typeof response.data === 'object' && !Array.isArray(response.data)) {
+    return response.data;
+  }
+  
+  // If response is already an object (not array)
+  if (typeof response === 'object' && !Array.isArray(response)) {
+    return response;
+  }
+  
+  throw new Error(`API endpoint ${endpoint} returned invalid object format. Expected object, got: ${typeof response}`);
+};
+
+/**
+ * Safely parse JSON from Fetch API Response
+ * 
+ * Validates:
+ * - response.ok is true
+ * - Content-Type includes application/json
+ * - response body is not empty
+ * 
+ * Throws clear error if any validation fails
+ */
+export const safeJsonParse = async (response: Response, endpoint: string = 'unknown'): Promise<any> => {
+  // Check if response is ok
+  if (!response.ok) {
+    throw new Error(`API endpoint ${endpoint} returned HTTP ${response.status}`);
+  }
+
+  // Check Content-Type header
+  const contentType = response.headers.get('content-type');
+  if (!contentType || !contentType.includes('application/json')) {
+    throw new Error(`API endpoint ${endpoint} returned invalid Content-Type: ${contentType || 'missing'}`);
+  }
+
+  // Check if response body is empty
+  const contentLength = response.headers.get('content-length');
+  if (contentLength === '0') {
+    throw new Error(`API endpoint ${endpoint} returned empty response body`);
+  }
+
+  // Try to parse JSON
+  try {
+    const text = await response.text();
+    
+    // Check if text is empty
+    if (!text || text.trim() === '') {
+      throw new Error(`API endpoint ${endpoint} returned empty response body`);
+    }
+
+    // Parse JSON
+    const data = JSON.parse(text);
+    
+    // Validate that we got actual data (not null, not empty string)
+    if (data === null || data === undefined || data === '') {
+      throw new Error(`API endpoint ${endpoint} returned empty JSON: ${text.substring(0, 200)}`);
+    }
+
+    return data;
+  } catch (error) {
+    if (error instanceof SyntaxError) {
+      throw new Error(`API endpoint ${endpoint} returned invalid JSON: ${error.message}`);
+    }
+    // Re-throw our validation errors
+    throw error;
+  }
 };
 
 // Create axios instance with base configuration
@@ -56,19 +177,64 @@ apiClient.interceptors.request.use((config) => {
   return config;
 });
 
-// Handle response errors globally
+// Validate response structure and content before returning
 apiClient.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      // Handle unauthorized - clear token and redirect to login if needed
-      localStorage.removeItem('token');
-      // Redirect to login page
-      if (typeof window !== 'undefined') {
-        window.location.href = '/login';
-      }
+  (response) => {
+    // Validate Content-Type is JSON
+    const contentType = response.headers['content-type'];
+    if (contentType && !contentType.includes('application/json')) {
+      throw new Error(`Invalid Content-Type: ${contentType}. Expected application/json from ${response.config.url}`);
     }
-    return Promise.reject(error);
+
+    // Check if response data is empty
+    if (response.data === null || response.data === undefined) {
+      throw new Error(`API endpoint ${response.config.url} returned empty response`);
+    }
+
+    if (typeof response.data === 'string' && response.data.trim() === '') {
+      throw new Error(`API endpoint ${response.config.url} returned empty string`);
+    }
+
+    return response;
+  },
+  (error) => {
+    // Enhanced error messages for axios errors
+    if (error.response) {
+      // Response received but status code is outside 2xx range
+      const status = error.response.status;
+      const endpoint = error.config?.url || 'unknown endpoint';
+      
+      if (status === 401) {
+        // Handle unauthorized - clear token and redirect to login if needed
+        localStorage.removeItem('token');
+        if (typeof window !== 'undefined') {
+          window.location.href = '/login';
+        }
+        return Promise.reject(new Error('جلستك منتهية. يرجى تسجيل الدخول مجددا'));
+      }
+      
+      if (status === 403) {
+        return Promise.reject(new Error('ليس لديك صلاحية للوصول إلى هذا المورد'));
+      }
+      
+      if (status === 404) {
+        return Promise.reject(new Error(`لم يتم العثور على: ${endpoint}`));
+      }
+      
+      if (status >= 500) {
+        return Promise.reject(new Error('خطأ في الخادم. يرجى المحاولة لاحقا'));
+      }
+      
+      // Try to get error message from response
+      const errorMessage = error.response.data?.message || error.response.data?.error || error.message;
+      return Promise.reject(new Error(errorMessage || `خطأ HTTP ${status}`));
+    } else if (error.request) {
+      // Request made but no response received
+      return Promise.reject(new Error('لا يمكن الاتصال بالخادم. تأكد من اتصالك بالإنترنت'));
+    } else {
+      // Error in request setup
+      return Promise.reject(error);
+    }
   }
 );
 
@@ -87,19 +253,10 @@ export const studentProfileAPI = {
         : '/api/student/profile/details';
       
       const response = await apiClient.get(endpoint);
-      const data = response.data;
-      
-      // Return single object or empty object
-      if (data?.data && typeof data.data === 'object' && !Array.isArray(data.data)) {
-        return data.data;
-      }
-      if (typeof data === 'object' && !Array.isArray(data)) {
-        return data;
-      }
-      return {};
+      return extractObject(response.data, endpoint);
     } catch (error) {
-      console.error('Error fetching profile:', error);
-      return {};
+      console.error(`Error fetching profile from ${endpoint}:`, error);
+      throw error;
     }
   },
 
@@ -114,9 +271,9 @@ export const studentProfileAPI = {
         : '/api/student/profile/notifications';
         
       const response = await apiClient.get(endpoint);
-      return extractArray(response.data);
+      return extractArray(response.data, endpoint);
     } catch (error) {
-      console.error('Error fetching notifications:', error);
+      console.error(`Error fetching notifications from ${endpoint}:`, error);
       return [];
     }
   },
@@ -126,14 +283,12 @@ export const studentProfileAPI = {
    */
   markNotificationAsRead: async (notificationId: string) => {
     try {
-      const response = await apiClient.put(
-        `/api/student/profile/notifications/${notificationId}/read`,
-        {}
-      );
-      return response.data || {};
+      const endpoint = `/api/student/profile/notifications/${notificationId}/read`;
+      const response = await apiClient.put(endpoint, {});
+      return extractObject(response.data, endpoint);
     } catch (error) {
-      console.error('Error marking notification as read:', error);
-      return {};
+      console.error(`Error marking notification as read:`, error);
+      throw error;
     }
   },
 
@@ -148,9 +303,9 @@ export const studentProfileAPI = {
         : '/api/student/profile/fees';
         
       const response = await apiClient.get(endpoint);
-      return extractArray(response.data);
+      return extractArray(response.data, endpoint);
     } catch (error) {
-      console.error('Error fetching fees:', error);
+      console.error(`Error fetching fees from ${endpoint}:`, error);
       return [];
     }
   },
@@ -166,9 +321,9 @@ export const studentProfileAPI = {
         : '/api/student/profile/assignments';
         
       const response = await apiClient.get(endpoint);
-      return extractArray(response.data);
+      return extractArray(response.data, endpoint);
     } catch (error) {
-      console.error('Error fetching assignments:', error);
+      console.error(`Error fetching assignments from ${endpoint}:`, error);
       return [];
     }
   },
@@ -179,13 +334,11 @@ export const studentProfileAPI = {
    */
   updateProfile: async (profileData: any) => {
     try {
-      const response = await apiClient.put(
-        '/api/Student/self-update',
-        profileData
-      );
-      return response.data || {};
+      const endpoint = '/api/Student/self-update';
+      const response = await apiClient.put(endpoint, profileData);
+      return extractObject(response.data, endpoint);
     } catch (error) {
-      console.error('Error updating profile:', error);
+      console.error(`Error updating profile:`, error);
       throw error;
     }
   },
@@ -205,13 +358,11 @@ export const studentPaymentsAPI = {
     receiptFilePath?: string;
   }) => {
     try {
-      const response = await apiClient.post(
-        `/api/student/payments/pay/${feeId}`,
-        paymentData
-      );
-      return response.data || {};
+      const endpoint = `/api/student/payments/pay/${feeId}`;
+      const response = await apiClient.post(endpoint, paymentData);
+      return extractObject(response.data, endpoint);
     } catch (error) {
-      console.error('Error submitting payment:', error);
+      console.error(`Error submitting payment for fee ${feeId}:`, error);
       throw error;
     }
   },
@@ -226,10 +377,11 @@ export const studentComplaintsAPI = {
    */
   getComplaints: async () => {
     try {
-      const response = await apiClient.get('/api/student/complaints');
-      return extractArray(response.data);
+      const endpoint = '/api/student/complaints';
+      const response = await apiClient.get(endpoint);
+      return extractArray(response.data, endpoint);
     } catch (error) {
-      console.error('Error fetching complaints:', error);
+      console.error(`Error fetching complaints:`, error);
       return [];
     }
   },
@@ -239,13 +391,14 @@ export const studentComplaintsAPI = {
    */
   submitComplaint: async (title: string, description: string) => {
     try {
-      const response = await apiClient.post('/api/student/complaints/submit', {
+      const endpoint = '/api/student/complaints/submit';
+      const response = await apiClient.post(endpoint, {
         title,
-        description,
+        message: description, // API expects 'message' not 'description'
       });
-      return response.data || {};
+      return extractObject(response.data, endpoint);
     } catch (error) {
-      console.error('Error submitting complaint:', error);
+      console.error(`Error submitting complaint:`, error);
       throw error;
     }
   },
@@ -277,7 +430,8 @@ export const applicationAPI = {
       // Clean national ID before sending
       const cleanedNationalId = applicationData.nationalId?.trim().replace(/\D/g, '') || null;
       
-      const response = await apiClient.post('/api/Application/Submit', {
+      const endpoint = '/api/Application/Submit';
+      const response = await apiClient.post(endpoint, {
         studentType: applicationData.studentType,
         fullName: applicationData.fullName,
         studentId: applicationData.studentId,
@@ -292,11 +446,8 @@ export const applicationAPI = {
         additionalInfo: applicationData.additionalInfo || null,
       });
       
-      // Handle different response formats
-      if (response.data?.data) {
-        return response.data.data;
-      }
-      return response.data || {};
+      // Extract response data
+      return extractObject(response.data, endpoint);
     } catch (error: any) {
       console.error('Error submitting application:', error);
       const errorMessage = error.response?.data?.message || error.response?.data?.error || error.message || 'فشل تقديم الطلب';
@@ -317,71 +468,32 @@ export const applicationAPI = {
         throw new Error('الرقم القومي يجب أن يكون 14 رقم');
       }
 
-      // Try different possible endpoints
-      const endpoints = [
-        `/api/Application/SearchByNationalId/${cleanedNationalId}`,
-        `/api/Application/GetByNationalId/${cleanedNationalId}`,
-        `/api/Application/NationalId/${cleanedNationalId}`,
-        `/api/Application?nationalId=${cleanedNationalId}`,
-      ];
-
-      let lastError: any = null;
-      
-      for (const endpoint of endpoints) {
-        try {
-          const response = await apiClient.get(endpoint);
-          
-          // Handle different response formats
-          const data = extractArray(response.data);
-          if (data.length > 0) {
-            return data;
-          }
-          
-          // Try single object format
-          if (response.data && typeof response.data === 'object' && !Array.isArray(response.data)) {
-            return [response.data];
-          }
-        } catch (err: any) {
-          lastError = err;
-          // Continue to next endpoint
-          continue;
+      // Try primary endpoint first
+      const endpoint = `/api/Application/SearchByNationalId/${cleanedNationalId}`;
+      try {
+        const response = await apiClient.get(endpoint);
+        const data = extractArray(response.data, endpoint);
+        return data.length > 0 ? data : [];
+      } catch (err: any) {
+        // Handle specific error codes
+        if (err.response?.status === 404) {
+          throw new Error('لم يتم العثور على طلب بهذا الرقم القومي');
         }
+        if (err.response?.status === 401 || err.response?.status === 403) {
+          throw new Error('ليس لديك صلاحية للوصول إلى هذه البيانات');
+        }
+        if (err.response?.status >= 500) {
+          throw new Error('خطأ في الخادم. يرجى المحاولة مرة أخرى لاحقاً');
+        }
+        if (err.code === 'ECONNREFUSED' || err.code === 'ENOTFOUND') {
+          throw new Error('لا يمكن الاتصال بخادم البحث. تأكد من أن API الخارجي متاح.');
+        }
+        
+        throw err;
       }
-
-      // If all endpoints failed, check the error type
-      if (lastError?.response?.status === 404) {
-        throw new Error('لم يتم العثور على طلب بهذا الرقم القومي');
-      }
-      
-      if (lastError?.code === 'ECONNREFUSED' || lastError?.code === 'ENOTFOUND') {
-        throw new Error('لا يمكن الاتصال بخادم البحث. تأكد من أن API الخارجي متاح.');
-      }
-      
-      if (lastError?.response?.status === 401 || lastError?.response?.status === 403) {
-        throw new Error('ليس لديك صلاحية للوصول إلى هذه البيانات');
-      }
-      
-      if (lastError?.response?.status >= 500) {
-        throw new Error('خطأ في الخادم. يرجى المحاولة مرة أخرى لاحقاً');
-      }
-
-      // If we get here, all endpoints failed
-      throw new Error('فشل البحث عن الطلب. تأكد من الرقم القومي والمحاولة مرة أخرى.');
     } catch (error: any) {
-      console.error('Error searching application:', error);
-      
-      // If error already has a friendly message, use it
-      if (error.message && !error.message.includes('Error:') && !error.message.includes('Network Error')) {
-        throw error;
-      }
-      
-      // Otherwise, create a user-friendly message
-      const errorMessage = error.response?.data?.message 
-        || error.response?.data?.error 
-        || error.message 
-        || 'فشل البحث عن الطلب. يرجى المحاولة مرة أخرى.';
-      
-      throw new Error(errorMessage);
+      console.error('Error searching application by national ID:', error);
+      throw error;
     }
   },
 

@@ -237,14 +237,46 @@ const AdvancedApplicationForm: React.FC = () => {
         body: JSON.stringify(validatedData),
       });
 
+      // Safely parse error response if not ok
+      let errorData = null;
       if (!response.ok) {
-        const errorData = await response.json();
+        try {
+          const errorResponse = response.clone();
+          const contentType = errorResponse.headers.get('content-type');
+          if (contentType && contentType.includes('application/json')) {
+            const errorText = await errorResponse.text();
+            if (errorText && errorText.trim()) {
+              errorData = JSON.parse(errorText);
+            }
+          }
+        } catch (parseError) {
+          // If we can't parse error response, use HTTP status
+          console.warn('Failed to parse error response:', parseError);
+        }
+        
         throw new Error(
-          errorData.error?.message || 'فشل إرسال الطلب'
+          errorData?.error?.message || errorData?.message || `فشل إرسال الطلب (HTTP ${response.status})`
         );
       }
 
-      const result = await response.json();
+      // Safely parse success response
+      let result;
+      try {
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+          throw new Error(`Invalid Content-Type: ${contentType || 'missing'}`);
+        }
+
+        const responseText = await response.text();
+        if (!responseText || responseText.trim() === '') {
+          throw new Error('Server returned empty response');
+        }
+
+        result = JSON.parse(responseText);
+      } catch (parseError) {
+        throw new Error(`فشل معالجة الرد من الخادم: ${parseError instanceof Error ? parseError.message : 'خطأ غير معروف'}`);
+      }
+
       setSubmitSuccess(true);
 
       // Reset form

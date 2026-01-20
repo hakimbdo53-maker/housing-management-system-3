@@ -1,4 +1,4 @@
-import { apiClient, extractArray } from './api';
+import { apiClient, extractArray, extractObject } from './api';
 
 /**
  * Admin Applications API Calls
@@ -9,8 +9,9 @@ export const adminApplicationsAPI = {
    */
   getAll: async () => {
     try {
-      const response = await apiClient.get('/api/admin/applications');
-      return extractArray(response.data);
+      const endpoint = '/api/admin/applications';
+      const response = await apiClient.get(endpoint);
+      return extractArray(response.data, endpoint);
     } catch (error) {
       console.error('Error fetching applications:', error);
       return [];
@@ -22,11 +23,12 @@ export const adminApplicationsAPI = {
    */
   getDetails: async (applicationId: number) => {
     try {
-      const response = await apiClient.get(`/api/admin/applications/${applicationId}/details`);
-      return response.data || {};
+      const endpoint = `/api/admin/applications/${applicationId}/details`;
+      const response = await apiClient.get(endpoint);
+      return extractObject(response.data, endpoint);
     } catch (error) {
       console.error('Error fetching application details:', error);
-      return {};
+      throw error;
     }
   },
 
@@ -35,8 +37,9 @@ export const adminApplicationsAPI = {
    */
   accept: async (applicationId: number) => {
     try {
-      const response = await apiClient.post(`/api/admin/applications/${applicationId}/accept`);
-      return response.data || {};
+      const endpoint = `/api/admin/applications/${applicationId}/accept`;
+      const response = await apiClient.post(endpoint);
+      return extractObject(response.data, endpoint);
     } catch (error) {
       console.error('Error accepting application:', error);
       throw error;
@@ -48,8 +51,9 @@ export const adminApplicationsAPI = {
    */
   reject: async (applicationId: number) => {
     try {
-      const response = await apiClient.post(`/api/admin/applications/${applicationId}/reject`);
-      return response.data || {};
+      const endpoint = `/api/admin/applications/${applicationId}/reject`;
+      const response = await apiClient.post(endpoint);
+      return extractObject(response.data, endpoint);
     } catch (error) {
       console.error('Error rejecting application:', error);
       throw error;
@@ -61,11 +65,9 @@ export const adminApplicationsAPI = {
    */
   setFees: async (applicationId: number, feesData: any) => {
     try {
-      const response = await apiClient.post(
-        `/api/admin/applications/${applicationId}/fees`,
-        feesData
-      );
-      return response.data || {};
+      const endpoint = `/api/admin/applications/${applicationId}/fees`;
+      const response = await apiClient.post(endpoint, feesData);
+      return extractObject(response.data, endpoint);
     } catch (error) {
       console.error('Error setting fees:', error);
       throw error;
@@ -77,11 +79,9 @@ export const adminApplicationsAPI = {
    */
   sendNotification: async (applicationId: number, notificationData: any) => {
     try {
-      const response = await apiClient.post(
-        `/api/admin/applications/${applicationId}/notifications`,
-        notificationData
-      );
-      return response.data || {};
+      const endpoint = `/api/admin/applications/${applicationId}/notifications`;
+      const response = await apiClient.post(endpoint, notificationData);
+      return extractObject(response.data, endpoint);
     } catch (error) {
       console.error('Error sending notification:', error);
       throw error;
@@ -98,8 +98,9 @@ export const adminComplaintsAPI = {
    */
   getUnresolved: async () => {
     try {
-      const response = await apiClient.get('/api/admin/complaints/unresolved');
-      return extractArray(response.data);
+      const endpoint = '/api/admin/complaints/unresolved';
+      const response = await apiClient.get(endpoint);
+      return extractArray(response.data, endpoint);
     } catch (error) {
       console.error('Error fetching unresolved complaints:', error);
       return [];
@@ -111,11 +112,9 @@ export const adminComplaintsAPI = {
    */
   resolve: async (complaintId: number, resolutionData: { resolutionMessage: string }) => {
     try {
-      const response = await apiClient.post(
-        `/api/admin/complaints/resolve/${complaintId}`,
-        resolutionData
-      );
-      return response.data || {};
+      const endpoint = `/api/admin/complaints/resolve/${complaintId}`;
+      const response = await apiClient.post(endpoint, resolutionData);
+      return extractObject(response.data, endpoint);
     } catch (error) {
       console.error('Error resolving complaint:', error);
       throw error;
@@ -132,8 +131,9 @@ export const adminPaymentsAPI = {
    */
   getPending: async () => {
     try {
-      const response = await apiClient.get('/api/admin/payments/pending');
-      return extractArray(response.data);
+      const endpoint = '/api/admin/payments/pending';
+      const response = await apiClient.get(endpoint);
+      return extractArray(response.data, endpoint);
     } catch (error) {
       console.error('Error fetching pending payments:', error);
       return [];
@@ -145,10 +145,9 @@ export const adminPaymentsAPI = {
    */
   approve: async (feePaymentId: number) => {
     try {
-      const response = await apiClient.post(
-        `/api/admin/payments/approve/${feePaymentId}`
-      );
-      return response.data || {};
+      const endpoint = `/api/admin/payments/approve/${feePaymentId}`;
+      const response = await apiClient.post(endpoint);
+      return extractObject(response.data, endpoint);
     } catch (error) {
       console.error('Error approving payment:', error);
       throw error;
@@ -160,10 +159,9 @@ export const adminPaymentsAPI = {
    */
   reject: async (feePaymentId: number) => {
     try {
-      const response = await apiClient.post(
-        `/api/admin/payments/reject/${feePaymentId}`
-      );
-      return response.data || {};
+      const endpoint = `/api/admin/payments/reject/${feePaymentId}`;
+      const response = await apiClient.post(endpoint);
+      return extractObject(response.data, endpoint);
     } catch (error) {
       console.error('Error rejecting payment:', error);
       throw error;
@@ -184,10 +182,9 @@ export const adminHousingFeesAPI = {
       params.append('amount', amount.toString());
       if (notes) params.append('notes', notes);
       
-      const response = await apiClient.post(
-        `/api/admin/housing-fees/set-global?${params.toString()}`
-      );
-      return response.data || {};
+      const endpoint = `/api/admin/housing-fees/set-global?${params.toString()}`;
+      const response = await apiClient.post(endpoint);
+      return extractObject(response.data, endpoint);
     } catch (error) {
       console.error('Error setting global housing fees:', error);
       throw error;
@@ -199,8 +196,9 @@ export const adminHousingFeesAPI = {
    */
   getAll: async () => {
     try {
-      const response = await apiClient.get('/api/admin/housing-fees');
-      return extractArray(response.data);
+      const endpoint = '/api/admin/housing-fees';
+      const response = await apiClient.get(endpoint);
+      return extractArray(response.data, endpoint);
     } catch (error) {
       console.error('Error fetching housing fees:', error);
       return [];
@@ -212,8 +210,9 @@ export const adminHousingFeesAPI = {
    */
   getByStudent: async (studentId: number) => {
     try {
-      const response = await apiClient.get(`/api/admin/housing-fees/student/${studentId}`);
-      return extractArray(response.data);
+      const endpoint = `/api/admin/housing-fees/student/${studentId}`;
+      const response = await apiClient.get(endpoint);
+      return extractArray(response.data, endpoint);
     } catch (error) {
       console.error('Error fetching student housing fees:', error);
       return [];
@@ -225,11 +224,9 @@ export const adminHousingFeesAPI = {
    */
   update: async (id: number, amount: number) => {
     try {
-      const response = await apiClient.put(
-        `/api/admin/housing-fees/${id}`,
-        amount
-      );
-      return response.data || {};
+      const endpoint = `/api/admin/housing-fees/${id}`;
+      const response = await apiClient.put(endpoint, amount);
+      return extractObject(response.data, endpoint);
     } catch (error) {
       console.error('Error updating housing fee:', error);
       throw error;
@@ -241,8 +238,9 @@ export const adminHousingFeesAPI = {
    */
   delete: async (id: number) => {
     try {
-      const response = await apiClient.delete(`/api/admin/housing-fees/${id}`);
-      return response.data || {};
+      const endpoint = `/api/admin/housing-fees/${id}`;
+      const response = await apiClient.delete(endpoint);
+      return extractObject(response.data, endpoint);
     } catch (error) {
       console.error('Error deleting housing fee:', error);
       throw error;
@@ -254,10 +252,9 @@ export const adminHousingFeesAPI = {
    */
   markPaid: async (id: number) => {
     try {
-      const response = await apiClient.put(
-        `/api/admin/housing-fees/${id}/mark-paid`
-      );
-      return response.data || {};
+      const endpoint = `/api/admin/housing-fees/${id}/mark-paid`;
+      const response = await apiClient.put(endpoint);
+      return extractObject(response.data, endpoint);
     } catch (error) {
       console.error('Error marking housing fee as paid:', error);
       throw error;
@@ -274,11 +271,9 @@ export const adminNotificationsAPI = {
    */
   sendToAll: async (notificationData: { title: string; message: string }) => {
     try {
-      const response = await apiClient.post(
-        '/api/admin/notifications/send-to-all',
-        notificationData
-      );
-      return response.data || {};
+      const endpoint = '/api/admin/notifications/send-to-all';
+      const response = await apiClient.post(endpoint, notificationData);
+      return extractObject(response.data, endpoint);
     } catch (error) {
       console.error('Error sending notification to all:', error);
       throw error;
@@ -295,8 +290,9 @@ export const adminApplicationStatusAPI = {
    */
   getAll: async () => {
     try {
-      const response = await apiClient.get('/api/admin/application-statuses');
-      return extractArray(response.data);
+      const endpoint = '/api/admin/application-statuses';
+      const response = await apiClient.get(endpoint);
+      return extractArray(response.data, endpoint);
     } catch (error) {
       console.error('Error fetching application statuses:', error);
       return [];
@@ -308,11 +304,9 @@ export const adminApplicationStatusAPI = {
    */
   create: async (statusData: any) => {
     try {
-      const response = await apiClient.post(
-        '/api/admin/application-statuses',
-        statusData
-      );
-      return response.data || {};
+      const endpoint = '/api/admin/application-statuses';
+      const response = await apiClient.post(endpoint, statusData);
+      return extractObject(response.data, endpoint);
     } catch (error) {
       console.error('Error creating application status:', error);
       throw error;
@@ -324,8 +318,9 @@ export const adminApplicationStatusAPI = {
    */
   get: async (id: number) => {
     try {
-      const response = await apiClient.get(`/api/admin/application-statuses/${id}`);
-      return response.data || {};
+      const endpoint = `/api/admin/application-statuses/${id}`;
+      const response = await apiClient.get(endpoint);
+      return extractObject(response.data, endpoint);
     } catch (error) {
       console.error('Error fetching application status:', error);
       return {};
@@ -337,11 +332,9 @@ export const adminApplicationStatusAPI = {
    */
   update: async (id: number, statusData: any) => {
     try {
-      const response = await apiClient.put(
-        `/api/admin/application-statuses/${id}`,
-        statusData
-      );
-      return response.data || {};
+      const endpoint = `/api/admin/application-statuses/${id}`;
+      const response = await apiClient.put(endpoint, statusData);
+      return extractObject(response.data, endpoint);
     } catch (error) {
       console.error('Error updating application status:', error);
       throw error;
@@ -353,8 +346,9 @@ export const adminApplicationStatusAPI = {
    */
   delete: async (id: number) => {
     try {
-      const response = await apiClient.delete(`/api/admin/application-statuses/${id}`);
-      return response.data || {};
+      const endpoint = `/api/admin/application-statuses/${id}`;
+      const response = await apiClient.delete(endpoint);
+      return extractObject(response.data, endpoint);
     } catch (error) {
       console.error('Error deleting application status:', error);
       throw error;
@@ -371,8 +365,9 @@ export const adminApplicationWindowAPI = {
    */
   getAll: async () => {
     try {
-      const response = await apiClient.get('/api/admin/application-windows');
-      return extractArray(response.data);
+      const endpoint = '/api/admin/application-windows';
+      const response = await apiClient.get(endpoint);
+      return extractArray(response.data, endpoint);
     } catch (error) {
       console.error('Error fetching application windows:', error);
       return [];
@@ -384,8 +379,9 @@ export const adminApplicationWindowAPI = {
    */
   getActive: async () => {
     try {
-      const response = await apiClient.get('/api/admin/application-windows/active');
-      return response.data || {};
+      const endpoint = '/api/admin/application-windows/active';
+      const response = await apiClient.get(endpoint);
+      return extractObject(response.data, endpoint);
     } catch (error) {
       console.error('Error fetching active application window:', error);
       return {};
@@ -397,11 +393,9 @@ export const adminApplicationWindowAPI = {
    */
   create: async (windowData: any) => {
     try {
-      const response = await apiClient.post(
-        '/api/admin/application-windows',
-        windowData
-      );
-      return response.data || {};
+      const endpoint = '/api/admin/application-windows';
+      const response = await apiClient.post(endpoint, windowData);
+      return extractObject(response.data, endpoint);
     } catch (error) {
       console.error('Error creating application window:', error);
       throw error;
@@ -413,8 +407,9 @@ export const adminApplicationWindowAPI = {
    */
   get: async (id: number) => {
     try {
-      const response = await apiClient.get(`/api/admin/application-windows/${id}`);
-      return response.data || {};
+      const endpoint = `/api/admin/application-windows/${id}`;
+      const response = await apiClient.get(endpoint);
+      return extractObject(response.data, endpoint);
     } catch (error) {
       console.error('Error fetching application window:', error);
       return {};
@@ -426,11 +421,9 @@ export const adminApplicationWindowAPI = {
    */
   update: async (id: number, windowData: any) => {
     try {
-      const response = await apiClient.put(
-        `/api/admin/application-windows/${id}`,
-        windowData
-      );
-      return response.data || {};
+      const endpoint = `/api/admin/application-windows/${id}`;
+      const response = await apiClient.put(endpoint, windowData);
+      return extractObject(response.data, endpoint);
     } catch (error) {
       console.error('Error updating application window:', error);
       throw error;
@@ -442,8 +435,9 @@ export const adminApplicationWindowAPI = {
    */
   delete: async (id: number) => {
     try {
-      const response = await apiClient.delete(`/api/admin/application-windows/${id}`);
-      return response.data || {};
+      const endpoint = `/api/admin/application-windows/${id}`;
+      const response = await apiClient.delete(endpoint);
+      return extractObject(response.data, endpoint);
     } catch (error) {
       console.error('Error deleting application window:', error);
       throw error;
@@ -464,10 +458,9 @@ export const adminBaseHousingFeesAPI = {
       params.append('amount', amount.toString());
       if (notes) params.append('notes', notes);
       
-      const response = await apiClient.post(
-        `/api/admin/base-housing-fees/set-global?${params.toString()}`
-      );
-      return response.data || {};
+      const endpoint = `/api/admin/base-housing-fees/set-global?${params.toString()}`;
+      const response = await apiClient.post(endpoint);
+      return extractObject(response.data, endpoint);
     } catch (error) {
       console.error('Error setting base housing fees:', error);
       throw error;
@@ -482,10 +475,9 @@ export const adminBaseHousingFeesAPI = {
       const params = new URLSearchParams();
       params.append('newAmount', newAmount.toString());
       
-      const response = await apiClient.put(
-        `/api/admin/base-housing-fees/update-global?${params.toString()}`
-      );
-      return response.data || {};
+      const endpoint = `/api/admin/base-housing-fees/update-global?${params.toString()}`;
+      const response = await apiClient.put(endpoint);
+      return extractObject(response.data, endpoint);
     } catch (error) {
       console.error('Error updating base housing fees:', error);
       throw error;
@@ -497,8 +489,9 @@ export const adminBaseHousingFeesAPI = {
    */
   getAll: async () => {
     try {
-      const response = await apiClient.get('/api/admin/base-housing-fees');
-      return extractArray(response.data);
+      const endpoint = '/api/admin/base-housing-fees';
+      const response = await apiClient.get(endpoint);
+      return extractArray(response.data, endpoint);
     } catch (error) {
       console.error('Error fetching base housing fees:', error);
       return [];
@@ -510,8 +503,9 @@ export const adminBaseHousingFeesAPI = {
    */
   delete: async (id: number) => {
     try {
-      const response = await apiClient.delete(`/api/admin/base-housing-fees/${id}`);
-      return response.data || {};
+      const endpoint = `/api/admin/base-housing-fees/${id}`;
+      const response = await apiClient.delete(endpoint);
+      return extractObject(response.data, endpoint);
     } catch (error) {
       console.error('Error deleting base housing fee:', error);
       throw error;
@@ -528,8 +522,9 @@ export const adminBuildingsAPI = {
    */
   getAll: async () => {
     try {
-      const response = await apiClient.get('/api/Building');
-      return extractArray(response.data);
+      const endpoint = '/api/Building';
+      const response = await apiClient.get(endpoint);
+      return extractArray(response.data, endpoint);
     } catch (error) {
       console.error('Error fetching buildings:', error);
       return [];
@@ -541,8 +536,9 @@ export const adminBuildingsAPI = {
    */
   create: async (buildingData: any) => {
     try {
-      const response = await apiClient.post('/api/Building', buildingData);
-      return response.data || {};
+      const endpoint = '/api/Building';
+      const response = await apiClient.post(endpoint, buildingData);
+      return extractObject(response.data, endpoint);
     } catch (error) {
       console.error('Error creating building:', error);
       throw error;
@@ -554,8 +550,9 @@ export const adminBuildingsAPI = {
    */
   get: async (id: number) => {
     try {
-      const response = await apiClient.get(`/api/Building/${id}`);
-      return response.data || {};
+      const endpoint = `/api/Building/${id}`;
+      const response = await apiClient.get(endpoint);
+      return extractObject(response.data, endpoint);
     } catch (error) {
       console.error('Error fetching building:', error);
       return {};
@@ -567,8 +564,9 @@ export const adminBuildingsAPI = {
    */
   update: async (id: number, buildingData: any) => {
     try {
-      const response = await apiClient.put(`/api/Building/${id}`, buildingData);
-      return response.data || {};
+      const endpoint = `/api/Building/${id}`;
+      const response = await apiClient.put(endpoint, buildingData);
+      return extractObject(response.data, endpoint);
     } catch (error) {
       console.error('Error updating building:', error);
       throw error;
@@ -580,8 +578,9 @@ export const adminBuildingsAPI = {
    */
   delete: async (id: number) => {
     try {
-      const response = await apiClient.delete(`/api/Building/${id}`);
-      return response.data || {};
+      const endpoint = `/api/Building/${id}`;
+      const response = await apiClient.delete(endpoint);
+      return extractObject(response.data, endpoint);
     } catch (error) {
       console.error('Error deleting building:', error);
       throw error;
@@ -598,8 +597,9 @@ export const adminRoomsAPI = {
    */
   getAll: async () => {
     try {
-      const response = await apiClient.get('/api/Room');
-      return extractArray(response.data);
+      const endpoint = '/api/Room';
+      const response = await apiClient.get(endpoint);
+      return extractArray(response.data, endpoint);
     } catch (error) {
       console.error('Error fetching rooms:', error);
       return [];
@@ -611,8 +611,9 @@ export const adminRoomsAPI = {
    */
   create: async (roomData: any) => {
     try {
-      const response = await apiClient.post('/api/Room', roomData);
-      return response.data || {};
+      const endpoint = '/api/Room';
+      const response = await apiClient.post(endpoint, roomData);
+      return extractObject(response.data, endpoint);
     } catch (error) {
       console.error('Error creating room:', error);
       throw error;
@@ -624,8 +625,9 @@ export const adminRoomsAPI = {
    */
   get: async (id: number) => {
     try {
-      const response = await apiClient.get(`/api/Room/${id}`);
-      return response.data || {};
+      const endpoint = `/api/Room/${id}`;
+      const response = await apiClient.get(endpoint);
+      return extractObject(response.data, endpoint);
     } catch (error) {
       console.error('Error fetching room:', error);
       return {};
@@ -637,8 +639,9 @@ export const adminRoomsAPI = {
    */
   update: async (id: number, roomData: any) => {
     try {
-      const response = await apiClient.put(`/api/Room/${id}`, roomData);
-      return response.data || {};
+      const endpoint = `/api/Room/${id}`;
+      const response = await apiClient.put(endpoint, roomData);
+      return extractObject(response.data, endpoint);
     } catch (error) {
       console.error('Error updating room:', error);
       throw error;
@@ -650,8 +653,9 @@ export const adminRoomsAPI = {
    */
   delete: async (id: number) => {
     try {
-      const response = await apiClient.delete(`/api/Room/${id}`);
-      return response.data || {};
+      const endpoint = `/api/Room/${id}`;
+      const response = await apiClient.delete(endpoint);
+      return extractObject(response.data, endpoint);
     } catch (error) {
       console.error('Error deleting room:', error);
       throw error;
@@ -672,10 +676,9 @@ export const adminRoomAssignmentsAPI = {
       params.append('studentId', studentId.toString());
       params.append('roomId', roomId.toString());
       
-      const response = await apiClient.post(
-        `/api/RoomAssignment/assign?${params.toString()}`
-      );
-      return response.data || {};
+      const endpoint = `/api/RoomAssignment/assign?${params.toString()}`;
+      const response = await apiClient.post(endpoint);
+      return extractObject(response.data, endpoint);
     } catch (error) {
       console.error('Error assigning room:', error);
       throw error;
@@ -687,8 +690,9 @@ export const adminRoomAssignmentsAPI = {
    */
   delete: async (id: number) => {
     try {
-      const response = await apiClient.delete(`/api/RoomAssignment/${id}`);
-      return response.data || {};
+      const endpoint = `/api/RoomAssignment/${id}`;
+      const response = await apiClient.delete(endpoint);
+      return extractObject(response.data, endpoint);
     } catch (error) {
       console.error('Error deleting room assignment:', error);
       throw error;
@@ -705,8 +709,9 @@ export const adminFeesAPI = {
    */
   getAll: async () => {
     try {
-      const response = await apiClient.get('/api/Fees');
-      return extractArray(response.data);
+      const endpoint = '/api/Fees';
+      const response = await apiClient.get(endpoint);
+      return extractArray(response.data, endpoint);
     } catch (error) {
       console.error('Error fetching fees:', error);
       return [];
@@ -718,8 +723,9 @@ export const adminFeesAPI = {
    */
   create: async (feeData: any) => {
     try {
-      const response = await apiClient.post('/api/Fees', feeData);
-      return response.data || {};
+      const endpoint = '/api/Fees';
+      const response = await apiClient.post(endpoint, feeData);
+      return extractObject(response.data, endpoint);
     } catch (error) {
       console.error('Error creating fee:', error);
       throw error;
@@ -731,8 +737,9 @@ export const adminFeesAPI = {
    */
   get: async (id: number) => {
     try {
-      const response = await apiClient.get(`/api/Fees/${id}`);
-      return response.data || {};
+      const endpoint = `/api/Fees/${id}`;
+      const response = await apiClient.get(endpoint);
+      return extractObject(response.data, endpoint);
     } catch (error) {
       console.error('Error fetching fee:', error);
       return {};
@@ -744,8 +751,9 @@ export const adminFeesAPI = {
    */
   update: async (id: number, feeData: any) => {
     try {
-      const response = await apiClient.put(`/api/Fees/${id}`, feeData);
-      return response.data || {};
+      const endpoint = `/api/Fees/${id}`;
+      const response = await apiClient.put(endpoint, feeData);
+      return extractObject(response.data, endpoint);
     } catch (error) {
       console.error('Error updating fee:', error);
       throw error;
@@ -757,8 +765,9 @@ export const adminFeesAPI = {
    */
   delete: async (id: number) => {
     try {
-      const response = await apiClient.delete(`/api/Fees/${id}`);
-      return response.data || {};
+      const endpoint = `/api/Fees/${id}`;
+      const response = await apiClient.delete(endpoint);
+      return extractObject(response.data, endpoint);
     } catch (error) {
       console.error('Error deleting fee:', error);
       throw error;
@@ -775,8 +784,9 @@ export const adminStudentsAPI = {
    */
   getAll: async () => {
     try {
-      const response = await apiClient.get('/api/Student');
-      return extractArray(response.data);
+      const endpoint = '/api/Student';
+      const response = await apiClient.get(endpoint);
+      return extractArray(response.data, endpoint);
     } catch (error) {
       console.error('Error fetching students:', error);
       return [];
@@ -788,8 +798,9 @@ export const adminStudentsAPI = {
    */
   create: async (studentData: any) => {
     try {
-      const response = await apiClient.post('/api/Student', studentData);
-      return response.data || {};
+      const endpoint = '/api/Student';
+      const response = await apiClient.post(endpoint, studentData);
+      return extractObject(response.data, endpoint);
     } catch (error) {
       console.error('Error creating student:', error);
       throw error;
@@ -801,8 +812,9 @@ export const adminStudentsAPI = {
    */
   get: async (id: number) => {
     try {
-      const response = await apiClient.get(`/api/Student/${id}`);
-      return response.data || {};
+      const endpoint = `/api/Student/${id}`;
+      const response = await apiClient.get(endpoint);
+      return extractObject(response.data, endpoint);
     } catch (error) {
       console.error('Error fetching student:', error);
       return {};
@@ -814,8 +826,9 @@ export const adminStudentsAPI = {
    */
   update: async (id: number, studentData: any) => {
     try {
-      const response = await apiClient.put(`/api/Student/${id}`, studentData);
-      return response.data || {};
+      const endpoint = `/api/Student/${id}`;
+      const response = await apiClient.put(endpoint, studentData);
+      return extractObject(response.data, endpoint);
     } catch (error) {
       console.error('Error updating student:', error);
       throw error;
@@ -827,8 +840,9 @@ export const adminStudentsAPI = {
    */
   delete: async (id: number) => {
     try {
-      const response = await apiClient.delete(`/api/Student/${id}`);
-      return response.data || {};
+      const endpoint = `/api/Student/${id}`;
+      const response = await apiClient.delete(endpoint);
+      return extractObject(response.data, endpoint);
     } catch (error) {
       console.error('Error deleting student:', error);
       throw error;
@@ -845,8 +859,9 @@ export const adminReportsAPI = {
    */
   getSummary: async () => {
     try {
-      const response = await apiClient.get('/api/Reports/summary');
-      return response.data || {};
+      const endpoint = '/api/Reports/summary';
+      const response = await apiClient.get(endpoint);
+      return extractObject(response.data, endpoint);
     } catch (error) {
       console.error('Error fetching reports summary:', error);
       return {};
@@ -863,8 +878,9 @@ export const adminUsersAPI = {
    */
   delete: async (id: number) => {
     try {
-      const response = await apiClient.delete(`/api/users/${id}`);
-      return response.data || {};
+      const endpoint = `/api/users/${id}`;
+      const response = await apiClient.delete(endpoint);
+      return extractObject(response.data, endpoint);
     } catch (error) {
       console.error('Error deleting user:', error);
       throw error;
