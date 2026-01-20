@@ -132,7 +132,7 @@ const safeTRPCFetch = async (input: string | Request, init?: RequestInit) => {
 const trpcClient = trpc.createClient({
   links: [
     httpBatchLink({
-      url: "/api/trpc",
+      url: "http://housingms.runasp.net/api/trpc",
       transformer: superjson,
       fetch: safeTRPCFetch,
     }),
