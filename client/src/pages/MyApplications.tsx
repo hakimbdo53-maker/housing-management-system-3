@@ -84,34 +84,36 @@ export default function MyApplications() {
                   key={app.id}
                   className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow"
                 >
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1">
-                      <h3 className="text-lg font-bold text-[#132a4f] mb-2">
+                  <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-lg font-bold text-[#132a4f] mb-4">
                         {getStudentTypeLabel(app.studentType)}
                       </h3>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                        <div>
-                          <p className="text-[#619cba] font-semibold">الاسم الكامل</p>
-                          <p className="text-[#132a4f]">{app.fullName}</p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+                        <div className="break-words">
+                          <p className="text-[#619cba] font-semibold mb-1">الاسم الكامل</p>
+                          <p className="text-[#132a4f] break-words">{app.fullName}</p>
                         </div>
-                        <div>
-                          <p className="text-[#619cba] font-semibold">الرقم القومي للطالب</p>
-                          <p className="text-[#132a4f]">{app.studentId}</p>
+                        <div className="break-words">
+                          <p className="text-[#619cba] font-semibold mb-1">الرقم القومي للطالب</p>
+                          <p className="text-[#132a4f] break-all">{app.studentId}</p>
                         </div>
-                        <div>
-                          <p className="text-[#619cba] font-semibold">التخصص</p>
-                          <p className="text-[#132a4f]">{app.major}</p>
+                        <div className="break-words">
+                          <p className="text-[#619cba] font-semibold mb-1">التخصص</p>
+                          <p className="text-[#132a4f] break-words">{app.major}</p>
                         </div>
-                        <div>
-                          <p className="text-[#619cba] font-semibold">تاريخ التقديم</p>
+                        <div className="break-words">
+                          <p className="text-[#619cba] font-semibold mb-1">تاريخ التقديم</p>
                           <p className="text-[#132a4f]">
                             {new Date(app.submittedAt).toLocaleDateString('ar-EG')}
                           </p>
                         </div>
                       </div>
                     </div>
-                    <div className={`px-4 py-2 rounded-full font-semibold whitespace-nowrap ${getStatusColor(app.status)}`}>
-                      {getStatusLabel(app.status)}
+                    <div className="flex-shrink-0 lg:ml-4">
+                      <div className={`px-4 py-2 rounded-full font-semibold text-center ${getStatusColor(app.status)}`}>
+                        {getStatusLabel(app.status)}
+                      </div>
                     </div>
                   </div>
                 </div>
