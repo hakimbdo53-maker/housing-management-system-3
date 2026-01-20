@@ -354,6 +354,7 @@ export const applicationAPI = {
   /**
    * Search for application by national ID from external API
    * @param nationalId - Student's national ID (14 digits)
+   * Primary endpoint: /api/Application/SearchByNationalId/{nationalId}
    */
   searchByNationalId: async (nationalId: string): Promise<any[]> => {
     try {
@@ -364,68 +365,53 @@ export const applicationAPI = {
         throw new Error('الرقم القومي يجب أن يكون 14 رقم');
       }
 
-      // Try different possible endpoints
-      const endpoints = [
-        `/api/Application/SearchByNationalId/${cleanedNationalId}`,
-        `/api/Application/GetByNationalId/${cleanedNationalId}`,
-        `/api/Application/NationalId/${cleanedNationalId}`,
-        `/api/Application?nationalId=${cleanedNationalId}`,
-      ];
-
-      let lastError: any = null;
+      // Primary endpoint from Swagger API documentation
+      const endpoint = `/api/Application/SearchByNationalId/${cleanedNationalId}`;
       
-      for (const endpoint of endpoints) {
-        try {
-          const response = await apiClient.get(endpoint);
-          
-          // Handle different response formats
-          const data = extractArray(response.data);
-          if (data.length > 0) {
-            return data;
-          }
-          
-          // Try single object format
-          if (response.data && typeof response.data === 'object' && !Array.isArray(response.data)) {
-            return [response.data];
-          }
-        } catch (err: any) {
-          lastError = err;
-          // Continue to next endpoint
-          continue;
-        }
+      const response = await apiClient.get(endpoint);
+      
+      // Handle different response formats
+      const data = extractArray(response.data);
+      if (data && data.length > 0) {
+        return data;
       }
-
-      // If all endpoints failed, check the error type
-      if (lastError?.response?.status === 404) {
+      
+      // Try single object format
+      if (response.data && typeof response.data === 'object' && !Array.isArray(response.data)) {
+        return [response.data];
+      }
+      
+      // Return empty array if no data found
+      return [];
+    } catch (err: any) {
+      console.error('Error searching application:', err);
+      
+      // Handle specific error types
+      if (err?.response?.status === 404) {
         throw new Error('لم يتم العثور على طلب بهذا الرقم القومي');
       }
       
-      if (lastError?.code === 'ECONNREFUSED' || lastError?.code === 'ENOTFOUND') {
+      if (err?.code === 'ECONNREFUSED' || err?.code === 'ENOTFOUND') {
         throw new Error('لا يمكن الاتصال بخادم البحث. تأكد من أن API الخارجي متاح.');
       }
       
-      if (lastError?.response?.status === 401 || lastError?.response?.status === 403) {
+      if (err?.response?.status === 401 || err?.response?.status === 403) {
         throw new Error('ليس لديك صلاحية للوصول إلى هذه البيانات');
       }
       
-      if (lastError?.response?.status >= 500) {
+      if (err?.response?.status >= 500) {
         throw new Error('خطأ في الخادم. يرجى المحاولة مرة أخرى لاحقاً');
       }
 
-      // If we get here, all endpoints failed
-      throw new Error('فشل البحث عن الطلب. تأكد من الرقم القومي والمحاولة مرة أخرى.');
-    } catch (error: any) {
-      console.error('Error searching application:', error);
-      
-      // If error already has a friendly message, use it
-      if (error.message && !error.message.includes('Error:') && !error.message.includes('Network Error')) {
-        throw error;
+      // Use friendly error message if already set
+      if (err.message && typeof err.message === 'string' && err.message.includes('يجب أن يكون')) {
+        throw err;
       }
       
-      // Otherwise, create a user-friendly message
-      const errorMessage = error.response?.data?.message 
-        || error.response?.data?.error 
-        || error.message 
+      // Default error message
+      const errorMessage = err?.response?.data?.message 
+        || err?.response?.data?.error 
+        || err?.message 
         || 'فشل البحث عن الطلب. يرجى المحاولة مرة أخرى.';
       
       throw new Error(errorMessage);
