@@ -1,10 +1,10 @@
-export const OAUTH_SERVER_URL =
-  import.meta.env.VITE_OAUTH_SERVER_URL || "http://localhost:3002";
+export const OAUTH_SERVER_URL = import.meta.env.VITE_OAUTH_SERVER_URL;
 
-export const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:3002";
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 export const getLoginUrl = () => {
-  const baseUrl = OAUTH_SERVER_URL || "http://localhost:3002";
-  return new URL("/login", baseUrl).toString();
+  if (!OAUTH_SERVER_URL) {
+    throw new Error("VITE_OAUTH_SERVER_URL environment variable is not set");
+  }
+  return new URL("/login", OAUTH_SERVER_URL).toString();
 };

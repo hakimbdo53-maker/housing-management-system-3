@@ -1,0 +1,27 @@
+# Netlify configuration for production deployment
+[build]
+  # Build command - only builds the frontend
+  command = "pnpm build"
+  # Output directory where the built frontend will be
+  publish = "dist/public"
+  # Node version for build
+  node_version = "20"
+
+[env]
+  [env.production]
+    # Production environment variables
+    VITE_API_BASE_URL = "http://housingms.runasp.net"
+    VITE_OAUTH_SERVER_URL = "http://housingms.runasp.net"
+
+# Redirect all API calls to the backend API
+[[redirects]]
+  from = "/api/*"
+  to = "http://housingms.runasp.net/api/:splat"
+  status = 200
+  force = true
+
+# SPA routing - redirect all non-file requests to index.html
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

@@ -48,6 +48,14 @@ pids
 
 # Coverage directory used by tools like istanbul
 coverage/
+
+# File-based database (development only)
+app.json
+db.json
+
+# Backup files
+*.bak
+server/db.ts.bak
 *.lcov
 
 # nyc test coverage
@@ -105,3 +113,5 @@ temp/
 *.db
 *.sqlite
 *.sqlite3
+
+
