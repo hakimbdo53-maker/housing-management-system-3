@@ -35,8 +35,8 @@ export default function Notifications() {
       setError(null);
 
       const notificationsData = await studentProfileAPI.getNotifications();
-      // Ensure notificationsData is an array
-      if (Array.isArray(notificationsData)) {
+      // Ensure notificationsData is a valid array
+      if (Array.isArray(notificationsData) && notificationsData.length > 0) {
         setNotifications(notificationsData);
       } else {
         setNotifications([]);

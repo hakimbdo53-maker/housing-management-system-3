@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 
 interface ValidationRule {
   pattern: RegExp;
@@ -7,7 +7,7 @@ interface ValidationRule {
   maxLength?: number;
 }
 
-interface ValidationState {
+export interface ValidationState {
   value: string;
   isValid: boolean;
   error?: string;
@@ -338,7 +338,7 @@ export function useDebouncedValidation(
   const [result, setResult] = useState<boolean | null>(null);
   const timeoutRef = useRef<NodeJS.Timeout>();
 
-  useState(() => {
+  useEffect(() => {
     // Clear previous timeout
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);

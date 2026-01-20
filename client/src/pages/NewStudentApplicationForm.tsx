@@ -13,11 +13,13 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { ArrowRight } from 'lucide-react';
 import { useAuth } from '@/_core/hooks/useAuth';
+import { applicationAPI } from '@/services/api';
 
 const newStudentSchema = z.object({
   nationalID: z.string().min(1, 'الرقم القومي مطلوب').regex(/^\d+$/, 'أرقام فقط'),
   studentName: z.string().min(3, 'الاسم الرباعي مطلوب'),
   mobile: z.string().min(10, 'رقم الهاتف مطلوب').regex(/^\d+$/, 'أرقام فقط'),
+  email: z.string().email('البريد الإلكتروني غير صحيح').optional().or(z.literal('')),
   birthDate: z.string().optional(),
   gender: z.string().optional(),
   religion: z.string().optional(),
@@ -28,7 +30,6 @@ const newStudentSchema = z.object({
   fatherName: z.string().optional(),
   fatherNationalID: z.string().optional(),
   fatherJob: z.string().optional(),
-  fatherPhone: z.string().optional(),
   fatherGovernorate: z.string().optional(),
   fatherResidenceCity: z.string().optional(),
   fatherAddress: z.string().optional(),
@@ -112,9 +113,16 @@ export default function NewStudentApplicationForm() {
     formState: { errors },
     reset,
     setValue,
+    watch,
   } = useForm<NewStudentFormData>({
     resolver: zodResolver(newStudentSchema),
   });
+
+  // Watch governorate value to get its label
+  const governorateValue = watch('governorate');
+
+  // Local database mutation for backup
+  const localBackupMutation = trpc.applications.create.useMutation();
 
   // Auto-fill profile data from authenticated user
   useEffect(() => {
@@ -129,41 +137,82 @@ export default function NewStudentApplicationForm() {
       if ((user as any)?.phoneNumber) {
         setValue('mobile', (user as any).phoneNumber);
       }
+      // Auto-fill email if available
+      if ((user as any)?.email) {
+        setValue('email', (user as any).email);
+      }
     }
   }, [user, setValue]);
 
-  const submitMutation = trpc.applications.create.useMutation({
-    onSuccess: () => {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const onSubmit = async (data: NewStudentFormData) => {
+    try {
+      setGeneralError(null);
+      setIsSubmitting(true);
+      console.log("[Form] Submitting new student application to external API");
+      
+      // Get Arabic label for governorate from the list
+      const governorateItem = governoratesList.find(item => item.value === data.governorate);
+      const governorateLabel = governorateItem?.label || data.governorate;
+      
+      // Use email from form data or from user or default value
+      const userEmail = (user as any)?.email || data.email || '';
+      // Ensure email is a valid string (not undefined)
+      const finalEmail = userEmail && userEmail.trim() !== '' 
+        ? userEmail 
+        : 'student@university.edu.eg';
+      
+      // Clean national ID: remove spaces and non-digit characters
+      const cleanedNationalId = data.nationalID.trim().replace(/\D/g, '');
+      
+      // Submit to external API
+      await applicationAPI.submitApplication({
+        studentType: 'new',
+        fullName: data.studentName,
+        studentId: cleanedNationalId,
+        nationalId: cleanedNationalId,
+        email: finalEmail,
+        phone: data.mobile,
+        major: data.department,
+        gpa: data.highschoolPercentage || 'N/A',
+        address: data.address,
+        governorate: governorateLabel, // Use Arabic label instead of value
+        familyIncome: 'N/A',
+        additionalInfo: data.housingNotes,
+      });
+
+      // Also save to local database for backup using tRPC
+      try {
+        await localBackupMutation.mutateAsync({
+          studentType: 'new',
+          fullName: data.studentName,
+          studentId: cleanedNationalId,
+          nationalId: cleanedNationalId,
+          email: finalEmail,
+          phone: data.mobile,
+          major: data.department,
+          gpa: data.highschoolPercentage || 'N/A',
+          address: data.address,
+          governorate: governorateLabel,
+          familyIncome: 'N/A',
+          additionalInfo: data.housingNotes,
+        });
+      } catch (localError) {
+        console.warn("[Form] Failed to save to local database:", localError);
+        // Continue even if local save fails
+      }
+
       setSuccessMessage('تم تقديم طلبك بنجاح!');
       reset();
       setTimeout(() => {
         navigate('/my-applications');
       }, 2000);
-    },
-    onError: (error) => {
-      setGeneralError(error.message);
-    },
-  });
-
-  const onSubmit = async (data: NewStudentFormData) => {
-    try {
-      setGeneralError(null);
-      console.log("[Form] Submitting new student application");
-      await submitMutation.mutateAsync({
-        studentType: 'new',
-        fullName: data.studentName,
-        studentId: data.nationalID,
-        email: undefined,
-        phone: data.mobile,
-        major: data.department,
-        gpa: data.highschoolPercentage || 'N/A',
-        address: data.address,
-        governorate: data.governorate,
-        familyIncome: 'N/A',
-        additionalInfo: data.housingNotes,
-      });
-    } catch (error) {
-      // خطأ يتم التعامل معه في onError
+    } catch (error: any) {
+      setGeneralError(error.message || 'فشل تقديم الطلب. يرجى المحاولة لاحقاً.');
+      console.error("[Form] Error submitting application:", error);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -244,6 +293,14 @@ export default function NewStudentApplicationForm() {
                   required
                   {...register('mobile')}
                 />
+
+                <FormInput
+                  label="البريد الإلكتروني"
+                  type="email"
+                  placeholder="البريد الإلكتروني"
+                  error={errors.email?.message}
+                  {...register('email')}
+                />
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
@@ -257,6 +314,7 @@ export default function NewStudentApplicationForm() {
                   label="النوع"
                   placeholder="اختر النوع"
                   options={[
+                    { value: '', label: 'اختر النوع' },
                     { value: 'ذكر', label: 'ذكر' },
                     { value: 'أنثى', label: 'أنثى' },
                   ]}
@@ -267,6 +325,7 @@ export default function NewStudentApplicationForm() {
                   label="الديانة"
                   placeholder="اختر الديانة"
                   options={[
+                    { value: '', label: 'اختر الديانة' },
                     { value: 'مسلم', label: 'مسلم' },
                     { value: 'مسيحي', label: 'مسيحي' },
                   ]}
@@ -324,6 +383,7 @@ export default function NewStudentApplicationForm() {
                   label="صلة ولي الأمر"
                   placeholder="اختر صلة ولي الأمر"
                   options={[
+                    { value: '', label: 'اختر صلة ولي الأمر' },
                     { value: 'أب', label: 'أب' },
                     { value: 'أم', label: 'أم' },
                     { value: 'أخ', label: 'أخ' },
@@ -379,15 +439,6 @@ export default function NewStudentApplicationForm() {
                   label="عنوان الأب بالتفصيل"
                   placeholder="العنوان بالتفصيل"
                   {...register('fatherAddress')}
-                />
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
-                <FormInput
-                  label="رقم الهاتف للأب"
-                  type="tel"
-                  placeholder="رقم الهاتف"
-                  {...register('fatherPhone')}
                 />
               </div>
 
@@ -462,6 +513,7 @@ export default function NewStudentApplicationForm() {
                   label="المستوى الدراسي"
                   placeholder="اختر المستوى"
                   options={[
+                    { value: '', label: 'اختر المستوى' },
                     { value: 'first', label: 'الأولى' },
                     { value: 'second', label: 'الثانية' },
                     { value: 'third', label: 'الثالثة' },
@@ -518,8 +570,9 @@ export default function NewStudentApplicationForm() {
                   label="نوع السكن"
                   placeholder="اختر نوع السكن"
                   options={[
-                    { value: 'withFood', label: 'بتغذية' },
-                    { value: 'withoutFood', label: 'بدون تغذية' },
+                    { value: '', label: 'اختر نوع السكن' },
+                    { value: 'جديد', label: 'جديد' },
+                    { value: 'مستمر', label: 'مستمر' },
                   ]}
                   {...register('housingType')}
                 />
@@ -528,6 +581,8 @@ export default function NewStudentApplicationForm() {
                   label="ذوي احتياجات خاصة"
                   placeholder="اختر"
                   options={[
+                    { value: '', label: 'اختر' },
+                    { value: 'نعم', label: 'نعم' },
                     { value: 'لا', label: 'لا' },
                   ]}
                   {...register('needsSpecial')}
@@ -563,10 +618,10 @@ export default function NewStudentApplicationForm() {
             <div className="flex gap-4 pt-6 border-t border-gray-200">
               <Button
                 type="submit"
-                disabled={submitMutation.isPending}
+                disabled={isSubmitting}
                 className="flex-1 bg-gradient-to-r from-[#0d3a52] to-[#0d5a7a] hover:from-[#0d5a7a] hover:to-[#0d7a9a] text-white font-semibold py-3 rounded-lg transition-all duration-200 disabled:opacity-50"
               >
-                {submitMutation.isPending ? 'جاري الإرسال...' : 'إرسال الطلب'}
+                {isSubmitting ? 'جاري الإرسال...' : 'إرسال الطلب'}
               </Button>
 
               <Button

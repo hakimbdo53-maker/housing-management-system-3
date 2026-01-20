@@ -10,7 +10,7 @@ import ValidatedInput from '@/components/ValidatedInput';
 import AlertBox from '@/components/AlertBox';
 import { Button } from '@/components/ui/button';
 import { trpc } from '@/lib/trpc';
-import { validatePhone, validateNId } from '@/shared/validation';
+import { validatePhone, validateNId } from '@shared/validation';
 
 // Validation schema - Unified field names
 const signupSchema = z.object({

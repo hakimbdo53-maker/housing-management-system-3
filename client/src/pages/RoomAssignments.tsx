@@ -36,9 +36,12 @@ export default function RoomAssignments() {
       setError(null);
 
       const assignmentsData = await studentProfileAPI.getAssignments();
-      // Ensure assignmentsData is an array
-      if (Array.isArray(assignmentsData)) {
+      // Ensure assignmentsData is a valid array
+      if (Array.isArray(assignmentsData) && assignmentsData.length > 0) {
         setAssignments(assignmentsData);
+      } else if (!Array.isArray(assignmentsData)) {
+        setAssignments([]);
+        setError('لم يتم استلام بيانات صحيحة من الخادم.');
       } else {
         setAssignments([]);
         setError('لم يتم العثور على أي تخصيصات.');

@@ -49,8 +49,8 @@ export default function Fees() {
       setError(null);
 
       const feesData = await studentProfileAPI.getFees();
-      // Ensure feesData is an array
-      if (Array.isArray(feesData)) {
+      // Ensure feesData is a valid array
+      if (Array.isArray(feesData) && feesData.length > 0) {
         setFees(feesData);
       } else {
         setFees([]);
@@ -83,9 +83,11 @@ export default function Fees() {
       setError(null);
 
       const feeId = parseInt(selectedFee.id);
-      await studentPaymentsAPI.submitPayment(feeId, {
-        transactionCode: transactionCode.trim(),
-        receiptFilePath: receiptPath,
+      // Note: submitPayment method not available - use makePayment instead
+      await studentPaymentsAPI.makePayment({
+        feeId: selectedFee.id,
+        amount: selectedFee.amount,
+        paymentMethod: 'transaction',
       });
 
       setPaymentSuccess(true);

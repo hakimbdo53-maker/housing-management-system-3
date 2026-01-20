@@ -1,7 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import ValidatedInput from '../components/ValidatedInput';
-import { validatePhone, validateNId, validateArabic } from '../../shared/validation';
-import { applicationSubmissionSchema } from '../../server/validationSchemas';
+import { validatePhone, validateNId, validateArabic } from '@shared/validation';
 import type { ValidationState } from '../hooks/useValidation';
 
 interface StudentApplication {
@@ -225,16 +224,13 @@ const AdvancedApplicationForm: React.FC = () => {
     setSubmitError('');
 
     try {
-      // Validate data before sending
-      const validatedData = applicationSubmissionSchema.parse(formData);
-
-      // Send to server
+      // Send to server (validation happens on server)
       const response = await fetch('/api/applications/submit', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(validatedData),
+        body: JSON.stringify(formData),
       });
 
       // Safely parse error response if not ok

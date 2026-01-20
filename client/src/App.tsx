@@ -34,7 +34,8 @@ function ProtectedRoute({ component: Component }: { component: React.ComponentTy
 
   if (!user) {
     navigate('/login');
-    return null;
+    // Return loading spinner instead of null to prevent blank screen
+    return <LoadingSpinner fullScreen message="جاري إعادة التوجيه..." />;
   }
 
   return <Component />;
@@ -52,7 +53,8 @@ function Router() {
   // Redirect logged-in users away from auth pages
   if (user && (location === '/login' || location === '/signup')) {
     navigate('/');
-    return null;
+    // Return loading spinner to prevent blank screen during redirect
+    return <LoadingSpinner fullScreen message="جاري إعادة التوجيه..." />;
   }
 
   return (

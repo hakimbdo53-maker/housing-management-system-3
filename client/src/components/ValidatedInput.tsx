@@ -1,5 +1,5 @@
 import React, { useState, ChangeEvent, FocusEvent } from 'react';
-import { ValidationResult, FIELD_VALIDATORS } from '@/shared/validation';
+import { ValidationResult, FIELD_VALIDATORS } from '@shared/validation';
 
 /**
  * Props for ValidatedInput Component
