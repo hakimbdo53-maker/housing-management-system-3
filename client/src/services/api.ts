@@ -354,29 +354,32 @@ export const applicationAPI = {
   /**
    * Search for application by national ID from external API
    * @param nationalId - Student's national ID (14 digits)
-   * Primary endpoint: /api/Application/SearchByNationalId/{nationalId}
+   * Endpoint: /api/Application/SearchByNationalId/{nationalId} (Swagger Primary)
+   * Returns: Array of applications or empty array
    */
   searchByNationalId: async (nationalId: string): Promise<any[]> => {
     try {
       // Clean national ID: remove spaces and non-digit characters
       const cleanedNationalId = nationalId.trim().replace(/\D/g, '');
       
+      // Validate: must be exactly 14 digits
       if (!cleanedNationalId || cleanedNationalId.length !== 14) {
         throw new Error('الرقم القومي يجب أن يكون 14 رقم');
       }
 
       // Primary endpoint from Swagger API documentation
       const endpoint = `/api/Application/SearchByNationalId/${cleanedNationalId}`;
+      console.log(`[API] Calling ${endpoint}`);
       
       const response = await apiClient.get(endpoint);
       
-      // Handle different response formats
+      // Handle different response formats from API
       const data = extractArray(response.data);
       if (data && data.length > 0) {
         return data;
       }
       
-      // Try single object format
+      // Try single object format (in case API returns single object)
       if (response.data && typeof response.data === 'object' && !Array.isArray(response.data)) {
         return [response.data];
       }
@@ -384,31 +387,34 @@ export const applicationAPI = {
       // Return empty array if no data found
       return [];
     } catch (err: any) {
-      console.error('Error searching application:', err);
+      console.error('[API] Error in searchByNationalId:', err.message);
       
-      // Handle specific error types
+      // Handle specific HTTP status codes
       if (err?.response?.status === 404) {
         throw new Error('لم يتم العثور على طلب بهذا الرقم القومي');
       }
       
+      // Handle connection errors
       if (err?.code === 'ECONNREFUSED' || err?.code === 'ENOTFOUND') {
-        throw new Error('لا يمكن الاتصال بخادم البحث. تأكد من أن API الخارجي متاح.');
+        throw new Error('فشل الاتصال بالخادم، يرجى المحاولة لاحقاً');
       }
       
+      // Handle authorization errors
       if (err?.response?.status === 401 || err?.response?.status === 403) {
         throw new Error('ليس لديك صلاحية للوصول إلى هذه البيانات');
       }
       
+      // Handle server errors
       if (err?.response?.status >= 500) {
         throw new Error('خطأ في الخادم. يرجى المحاولة مرة أخرى لاحقاً');
       }
 
-      // Use friendly error message if already set
+      // Preserve validation errors
       if (err.message && typeof err.message === 'string' && err.message.includes('يجب أن يكون')) {
         throw err;
       }
       
-      // Default error message
+      // Default error handling: use server response message or fallback
       const errorMessage = err?.response?.data?.message 
         || err?.response?.data?.error 
         || err?.message 

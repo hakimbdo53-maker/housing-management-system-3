@@ -113,9 +113,13 @@ export default function Inquiry() {
           if (externalError?.message?.includes('لم يتم العثور')) {
             // Don't throw, just leave applications empty
           } else {
+            // For other errors, check if we can provide helpful feedback
+            if (externalError?.message?.includes('ECONNREFUSED') || externalError?.message?.includes('فشل الاتصال')) {
+              throw new Error('فشل الاتصال بالخادم، يرجى المحاولة لاحقاً');
+            }
             // For other errors, only throw if we didn't find anything locally
             if (!foundInLocal && applications.length === 0) {
-              throw new Error('فشل الاتصال بخادم البحث. يرجى المحاولة مرة أخرى لاحقاً.');
+              throw externalError;
             }
           }
         }
@@ -123,7 +127,7 @@ export default function Inquiry() {
 
       // Step 3: Process results
       if (!applications || applications.length === 0) {
-        setError('لم يتم العثور على طلب بهذا الرقم القومي. تأكد من إدخال الرقم بشكل صحيح (14 رقم).');
+        setError('عذرًا، لم يتم العثور على طلب بهذا الرقم القومي');
         setResult(null);
         return;
       }
@@ -141,20 +145,21 @@ export default function Inquiry() {
       console.error("[Inquiry] Error searching:", err);
       
       // Show user-friendly error message based on error type
-      let errorMessage = 'فشل البحث عن الطلب.';
+      let errorMessage = 'فشل الاتصال بالخادم، يرجى المحاولة لاحقاً';
       
-      if (err.message) {
+      // Check for connection errors first
+      if (err?.code === 'ECONNREFUSED' || err?.code === 'ENOTFOUND' || err?.message?.includes('ECONNREFUSED')) {
+        errorMessage = 'فشل الاتصال بالخادم، يرجى المحاولة لاحقاً';
+      } else if (err?.message?.includes('لم يتم العثور')) {
+        errorMessage = 'عذرًا، لم يتم العثور على طلب بهذا الرقم القومي';
+      } else if (err?.response?.status === 404) {
+        errorMessage = 'عذرًا، لم يتم العثور على طلب بهذا الرقم القومي';
+      } else if (err?.response?.status === 401 || err?.response?.status === 403) {
+        errorMessage = 'ليس لديك صلاحية للوصول إلى هذه البيانات';
+      } else if (err?.response?.status >= 500) {
+        errorMessage = 'فشل الاتصال بالخادم، يرجى المحاولة لاحقاً';
+      } else if (err?.message) {
         errorMessage = err.message;
-      } else if (err.response?.status === 404) {
-        errorMessage = 'لم يتم العثور على طلب بهذا الرقم القومي.';
-      } else if (err.response?.status === 401 || err.response?.status === 403) {
-        errorMessage = 'ليس لديك صلاحية للوصول إلى هذه البيانات.';
-      } else if (err.response?.status >= 500) {
-        errorMessage = 'خطأ في الخادم. يرجى المحاولة مرة أخرى لاحقاً.';
-      } else if (err.code === 'NETWORK_ERROR' || err.message?.includes('Network')) {
-        errorMessage = 'فشل الاتصال بالخادم. تأكد من الاتصال بالإنترنت.';
-      } else {
-        errorMessage = 'حدث خطأ أثناء البحث. يرجى المحاولة مرة أخرى.';
       }
       
       setError(errorMessage);
