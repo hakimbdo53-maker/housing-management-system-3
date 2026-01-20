@@ -1,17 +1,9 @@
-# Netlify configuration for Vite + React (client inside /client)
-
 [build]
   base = "client"
   command = "npm run build"
-  publish = "../dist"
-  node_version = "20"
+  publish = "dist"
 
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
-
-[env.production]
-  VITE_API_BASE_URL = "http://housingms.runasp.net"
-  VITE_OAUTH_SERVER_URL = "http://housingms.runasp.net"
-  VITE_TRPC_URL = "http://housingms.runasp.net/api/trpc"
