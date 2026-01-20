@@ -12,6 +12,12 @@ import {
   studentProfileUpdateSchema,
   formatValidationError,
 } from "./validationSchemas";
+import {
+  validateFileForUpload,
+  ensureUploadDirectory,
+  getFileUploadPath,
+  getFileStorageReference,
+} from "./middleware/fileUpload";
 
 // Helper to ensure user is authenticated
 const protectedProcedure = publicProcedure.use(({ ctx, next }) => {
@@ -204,6 +210,87 @@ export const appRouter = router({
           });
         }
         return applications;
+      }),
+  }),
+
+  // File Upload Router
+  files: router({
+    uploadReceipt: protectedProcedure
+      .input(
+        z.object({
+          filename: z.string().min(1, "اسم الملف مطلوب"),
+          mimeType: z.string().min(1, "نوع الملف مطلوب"),
+          fileSize: z.number().positive("حجم الملف غير صحيح"),
+        })
+      )
+      .mutation(async ({ input, ctx }) => {
+        try {
+          // Validate file before processing
+          const validation = validateFileForUpload(
+            input.mimeType,
+            input.fileSize,
+            input.filename
+          );
+
+          if (!validation.isValid) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: "الملف غير صحيح",
+            });
+          }
+
+          // Ensure upload directory exists
+          ensureUploadDirectory();
+
+          // Generate storage reference
+          const storageRef = getFileStorageReference(validation.uniqueFilename);
+
+          return {
+            success: true,
+            filename: validation.uniqueFilename,
+            storageRef,
+            uploadPath: getFileUploadPath(validation.uniqueFilename),
+            message: "تم قبول الملف بنجاح",
+          };
+        } catch (error) {
+          if (error instanceof TRPCError) {
+            throw error;
+          }
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: "فشل معالجة الملف، حاول مرة أخرى",
+          });
+        }
+      }),
+
+    // Validate file before upload (separate endpoint for client-side pre-validation)
+    validateFile: publicProcedure
+      .input(
+        z.object({
+          mimeType: z.string(),
+          fileSize: z.number(),
+          filename: z.string(),
+        })
+      )
+      .query(async ({ input }) => {
+        try {
+          validateFileForUpload(input.mimeType, input.fileSize, input.filename);
+          return {
+            isValid: true,
+            message: "الملف صحيح ويمكن رفعه",
+          };
+        } catch (error) {
+          if (error instanceof TRPCError) {
+            return {
+              isValid: false,
+              message: error.message,
+            };
+          }
+          return {
+            isValid: false,
+            message: "فشل التحقق من الملف",
+          };
+        }
       }),
   }),
 });
