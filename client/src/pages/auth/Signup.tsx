@@ -54,7 +54,7 @@ export default function Signup() {
     resolver: zodResolver(signupSchema),
   });
 
-  const signupMutation = trpc.auth.signup.useMutation({
+  const signupMutation = trpc.student.auth.register.useMutation({
     onSuccess: () => {
       // Data already saved in onSubmit before API call
       navigate('/login');
@@ -71,13 +71,10 @@ export default function Signup() {
       // Send unified profile data to Backend
       // Backend stores in User table
       await signupMutation.mutateAsync({
-        username: data.username,
-        studentId: data.studentId,
+        userName: data.username,
         password: data.password,
-        // Unified Profile Data
-        fullName: data.fullName,
-        nationalId: data.nationalId,
-        phoneNumber: data.phoneNumber,
+        role: "student",
+        studentId: parseInt(data.studentId) || undefined,
         email: data.email,
       });
     } catch (error) {

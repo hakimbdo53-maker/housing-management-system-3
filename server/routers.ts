@@ -35,185 +35,432 @@ const protectedProcedure = publicProcedure.use(({ ctx, next }) => {
   });
 });
 
+// DTOs matching Swagger exactly
+type StudentTypeEnum = 0 | 1;
+
+type StudentDto = {
+  studentId?: number;
+  nationalId?: string;
+  fullName?: string;
+  studentType?: StudentTypeEnum;
+  birthDate?: string;
+  birthPlace?: string;
+  gender?: string;
+  religion?: string;
+  governorate?: string;
+  city?: string;
+  address?: string;
+  email?: string;
+  phone?: string;
+  faculty?: string;
+  department?: string;
+  level?: string;
+  fatherContactId?: number;
+  guardianContactId?: number;
+  userId?: number;
+};
+
+type FamilyContactDto = {
+  contactId?: number;
+  fullName?: string;
+  nationalId?: string;
+  relation?: string;
+  job?: string;
+  phoneNumber?: string;
+  address?: string;
+};
+
+type SecondaryEducationDto = {
+  studentId?: number;
+  secondaryStream?: string;
+  totalScore?: number;
+  percentage?: number;
+  grade?: string;
+};
+
+type AcademicEducationDto = {
+  studentId?: number;
+  currentGPA?: number;
+  lastYearGrade?: string;
+};
+
+type FullFormDto = {
+  studentType: StudentTypeEnum;
+  studentInfo: StudentDto;
+  fatherInfo: FamilyContactDto;
+  selectedGuardianRelation?: string;
+  otherGuardianInfo: FamilyContactDto;
+  secondaryInfo: SecondaryEducationDto;
+  academicInfo: AcademicEducationDto;
+};
+
+type SubmitComplaintDto = {
+  title: string;
+  message: string;
+};
+
+type FeePaymentDto = {
+  studentId?: number;
+  transactionCode?: string;
+  receiptFilePath?: string;
+};
+
+type FeesDto = {
+  feeId?: number;
+  amount?: number;
+  feeType?: string;
+  status?: string;
+  createdAt?: string;
+  studentId?: number;
+  userId?: number;
+};
+
+type NotificationDto = {
+  notificationId?: number;
+  title?: string;
+  message?: string;
+  createdAt?: string;
+  isRead?: boolean;
+  studentId?: number;
+  userId?: number;
+  applicationId?: number;
+};
+
+type LoginDto = {
+  username: string;
+  password: string;
+};
+
+type RegisterDto = {
+  userName: string;
+  password: string;
+  role: string;
+  studentId?: number;
+};
+
 export const appRouter = router({
-    // if you need to use socket.io, read and register route in server/_core/index.ts, all api should start with '/api/' so that the gateway can route correctly
+  // System router - keep as-is
   system: systemRouter,
-  auth: router({
-    me: publicProcedure.query(opts => {
-      console.log("[API] auth.me called - ctx.user:", opts.ctx.user ? { id: opts.ctx.user.id, username: opts.ctx.user.username } : null);
-      return opts.ctx.user;
+
+  // ============================================
+  // STUDENT AUTH ROUTES (Swagger: /api/student/auth/*)
+  // ============================================
+  student: router({
+    auth: router({
+      // POST /api/student/auth/register - RegisterDto
+      register: publicProcedure
+        .input(z.object({
+          userName: z.string().min(1, "اسم المستخدم مطلوب"),
+          password: z.string().min(1, "كلمة المرور مطلوبة"),
+          role: z.string().min(1, "الدور مطلوب"),
+          studentId: z.number().optional(),
+        }))
+        .mutation(async ({ input, ctx }) => {
+          try {
+            const existingUser = await db.getUserByUsername(input.userName);
+            if (existingUser) {
+              throw new TRPCError({
+                code: "BAD_REQUEST",
+                message: "اسم المستخدم موجود بالفعل",
+              });
+            }
+
+            const user = await db.createUser({
+              username: input.userName,
+              studentId: input.studentId?.toString() || "",
+              password: input.password,
+              role: input.role,
+            });
+
+            return { success: true, user };
+          } catch (error) {
+            if (error instanceof TRPCError) throw error;
+            throw new TRPCError({
+              code: "INTERNAL_SERVER_ERROR",
+              message: "فشل التسجيل",
+            });
+          }
+        }),
+
+      // POST /api/student/auth/login - LoginDto
+      login: publicProcedure
+        .input(z.object({
+          username: z.string().min(1, "اسم المستخدم مطلوب").max(50),
+          password: z.string().min(6, "كلمة المرور يجب أن تكون 6 أحرف على الأقل"),
+        }))
+        .mutation(async ({ input, ctx }) => {
+          try {
+            const user = await db.getUserByUsername(input.username);
+            if (!user || user.password !== input.password) {
+              throw new TRPCError({
+                code: "UNAUTHORIZED",
+                message: "اسم المستخدم أو كلمة المرور غير صحيحة",
+              });
+            }
+
+            const sessionToken = await sdk.createSessionToken(user.username, {
+              name: user.username,
+              expiresInMs: ONE_YEAR_MS,
+            });
+
+            const cookieOptions = getSessionCookieOptions(ctx.req);
+            ctx.res.cookie(COOKIE_NAME, sessionToken, {
+              ...cookieOptions,
+              maxAge: ONE_YEAR_MS,
+            });
+
+            return { success: true, user };
+          } catch (error) {
+            if (error instanceof TRPCError) throw error;
+            throw new TRPCError({
+              code: "INTERNAL_SERVER_ERROR",
+              message: "فشل تسجيل الدخول",
+            });
+          }
+        }),
     }),
-    signup: publicProcedure
-      .input(z.object({
-        username: z.string().min(3),
-        studentId: z.string().min(1),
-        password: z.string().min(6),
-        // Profile data - unified field names
-        fullName: z.string().optional(),
-        nationalId: z.string().optional(),
-        phoneNumber: z.string().optional(),
-        email: z.string().optional(),
-      }))
-      .mutation(async ({ input }) => {
-        const existingUser = await db.getUserByUsername(input.username);
-        if (existingUser) {
+
+    // ============================================
+    // STUDENT PROFILE ROUTES (Swagger: /api/student/profile/*)
+    // ============================================
+    profile: router({
+      // GET /api/student/profile/notifications
+      notifications: protectedProcedure.query(async ({ ctx }) => {
+        try {
+          const notifications = await db.getNotificationsByUserId(ctx.user!.id);
+          return notifications || [];
+        } catch (error) {
+          console.error("Error fetching notifications:", error);
+          return [];
+        }
+      }),
+
+      // PUT /api/student/profile/notifications/{id}/read
+      markNotificationAsRead: protectedProcedure
+        .input(z.object({
+          id: z.number(),
+        }))
+        .mutation(async ({ input, ctx }) => {
+          try {
+            const notification = await db.markNotificationAsRead(input.id);
+            return notification;
+          } catch (error) {
+            throw new TRPCError({
+              code: "INTERNAL_SERVER_ERROR",
+              message: "فشل تحديث الإشعار",
+            });
+          }
+        }),
+
+      // GET /api/student/profile/fees
+      fees: protectedProcedure.query(async ({ ctx }) => {
+        try {
+          const fees = await db.getFeesByStudentUserId(ctx.user!.id);
+          return fees || [];
+        } catch (error) {
+          console.error("Error fetching fees:", error);
+          return [];
+        }
+      }),
+
+      // GET /api/student/profile/assignments
+      assignments: protectedProcedure.query(async ({ ctx }) => {
+        try {
+          const assignments = await db.getRoomAssignmentsByUserId(ctx.user!.id);
+          return assignments || [];
+        } catch (error) {
+          console.error("Error fetching assignments:", error);
+          return [];
+        }
+      }),
+
+      // GET /api/student/profile/details
+      details: protectedProcedure.query(async ({ ctx }) => {
+        try {
+          const student = await db.getStudentByUserId(ctx.user!.id);
+          return student;
+        } catch (error) {
           throw new TRPCError({
-            code: "BAD_REQUEST",
-            message: "اسم المستخدم موجود بالفعل",
+            code: "NOT_FOUND",
+            message: "لم يتم العثور على بيانات الطالب",
           });
         }
-        
-        const user = await db.createUser({
-          username: input.username,
-          studentId: input.studentId,
-          password: input.password, // In production, hash this!
-          role: "user",
-          // Profile data - unified field names
-          fullName: input.fullName,
-          nationalId: input.nationalId,
-          phoneNumber: input.phoneNumber,
-          email: input.email,
-        });
-
-        return { success: true, user };
       }),
-    login: publicProcedure
-      .input(z.object({
-        username: z.string(),
-        password: z.string(),
-      }))
-      .mutation(async ({ input, ctx }) => {
-        const user = await db.getUserByUsername(input.username);
-        if (!user || user.password !== input.password) {
-          throw new TRPCError({
-            code: "UNAUTHORIZED",
-            message: "اسم المستخدم أو كلمة المرور غير صحيحة",
-          });
+    }),
+
+    // ============================================
+    // STUDENT APPLICATIONS ROUTES (Swagger: /api/student/applications/*)
+    // ============================================
+    applications: router({
+      // POST /api/student/applications/submit - FullFormDto
+      submit: protectedProcedure
+        .input(z.object({
+          studentType: z.number().int(),
+          studentInfo: z.object({
+            studentId: z.number().optional(),
+            nationalId: z.string().optional(),
+            fullName: z.string().optional(),
+            studentType: z.number().optional(),
+            birthDate: z.string().optional(),
+            birthPlace: z.string().optional(),
+            gender: z.string().optional(),
+            religion: z.string().optional(),
+            governorate: z.string().optional(),
+            city: z.string().optional(),
+            address: z.string().optional(),
+            email: z.string().optional(),
+            phone: z.string().optional(),
+            faculty: z.string().optional(),
+            department: z.string().optional(),
+            level: z.string().optional(),
+            fatherContactId: z.number().optional(),
+            guardianContactId: z.number().optional(),
+            userId: z.number().optional(),
+          }).optional(),
+          fatherInfo: z.object({
+            contactId: z.number().optional(),
+            fullName: z.string().optional(),
+            nationalId: z.string().optional(),
+            relation: z.string().optional(),
+            job: z.string().optional(),
+            phoneNumber: z.string().optional(),
+            address: z.string().optional(),
+          }).optional(),
+          selectedGuardianRelation: z.string().optional(),
+          otherGuardianInfo: z.object({
+            contactId: z.number().optional(),
+            fullName: z.string().optional(),
+            nationalId: z.string().optional(),
+            relation: z.string().optional(),
+            job: z.string().optional(),
+            phoneNumber: z.string().optional(),
+            address: z.string().optional(),
+          }).optional(),
+          secondaryInfo: z.object({
+            studentId: z.number().optional(),
+            secondaryStream: z.string().optional(),
+            totalScore: z.number().optional(),
+            percentage: z.number().optional(),
+            grade: z.string().optional(),
+          }).optional(),
+          academicInfo: z.object({
+            studentId: z.number().optional(),
+            currentGPA: z.number().optional(),
+            lastYearGrade: z.string().optional(),
+          }).optional(),
+        }))
+        .mutation(async ({ input, ctx }) => {
+          try {
+            // Store full application form
+            const application = await db.createFullApplication({
+              userId: ctx.user!.id,
+              fullForm: input,
+            });
+
+            return { success: true, application };
+          } catch (error) {
+            throw new TRPCError({
+              code: "INTERNAL_SERVER_ERROR",
+              message: "فشل تقديم الطلب",
+            });
+          }
+        }),
+
+      // GET /api/student/applications/my-applications
+      myApplications: protectedProcedure.query(async ({ ctx }) => {
+        try {
+          const applications = await db.getApplicationsByUserId(ctx.user!.id);
+          return applications || [];
+        } catch (error) {
+          console.error("Error fetching applications:", error);
+          return [];
         }
-
-        const sessionToken = await sdk.createSessionToken(user.username, {
-          name: user.username,
-          expiresInMs: ONE_YEAR_MS,
-        });
-
-        const cookieOptions = getSessionCookieOptions(ctx.req);
-        ctx.res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: ONE_YEAR_MS });
-
-        return { success: true, user };
       }),
+    }),
+
+    // ============================================
+    // STUDENT COMPLAINTS ROUTES (Swagger: /api/student/complaints/*)
+    // ============================================
+    complaints: router({
+      // POST /api/student/complaints/submit - SubmitComplaintDto
+      submit: protectedProcedure
+        .input(z.object({
+          title: z.string().max(100, "العنوان يجب أن لا يتجاوز 100 حرف"),
+          message: z.string().max(500, "الرسالة يجب أن لا تتجاوز 500 حرف"),
+        }))
+        .mutation(async ({ input, ctx }) => {
+          try {
+            const complaint = await db.createComplaint({
+              userId: ctx.user!.id,
+              title: input.title,
+              description: input.message,
+              status: "pending",
+              createdAt: new Date(),
+            });
+
+            return { success: true, complaint };
+          } catch (error) {
+            throw new TRPCError({
+              code: "INTERNAL_SERVER_ERROR",
+              message: "فشل تقديم الشكوى",
+            });
+          }
+        }),
+    }),
+
+    // ============================================
+    // STUDENT PAYMENTS ROUTES (Swagger: /api/student/payments/*)
+    // ============================================
+    payments: router({
+      // POST /api/student/payments/pay/{feeId} - FeePaymentDto
+      pay: protectedProcedure
+        .input(z.object({
+          feeId: z.number(),
+          studentId: z.number().optional(),
+          transactionCode: z.string().optional(),
+          receiptFilePath: z.string().optional(),
+        }))
+        .mutation(async ({ input, ctx }) => {
+          try {
+            const payment = await db.createFeePayment({
+              feeId: input.feeId,
+              userId: ctx.user!.id,
+              studentId: input.studentId,
+              transactionCode: input.transactionCode,
+              receiptFilePath: input.receiptFilePath,
+              status: "pending",
+              createdAt: new Date(),
+            });
+
+            return { success: true, payment };
+          } catch (error) {
+            throw new TRPCError({
+              code: "INTERNAL_SERVER_ERROR",
+              message: "فشل معالجة الدفع",
+            });
+          }
+        }),
+    }),
+  }),
+
+  // ============================================
+  // GENERAL AUTH ROUTES (Swagger: /api/auth/* & /api/student/auth/*)
+  // ============================================
+  auth: router({
+    me: publicProcedure.query((opts) => {
+      return opts.ctx.user || null;
+    }),
+
     logout: publicProcedure.mutation(({ ctx }) => {
       const cookieOptions = getSessionCookieOptions(ctx.req);
       ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });
-      return {
-        success: true,
-      } as const;
+      return { success: true } as const;
     }),
   }),
 
-  // Complaints Router
-  complaints: router({
-    // Get all complaints for the logged-in student
-    list: protectedProcedure.query(async ({ ctx }) => {
-      try {
-        const complaints = await db.getComplaintsByUserId(ctx.user!.id);
-        return complaints;
-      } catch (error) {
-        console.error('Error fetching complaints:', error);
-        return [];
-      }
-    }),
-
-    // Submit a new complaint
-    create: protectedProcedure
-      .input(z.object({
-        title: z.string().min(3, 'عنوان الشكوى مطلوب'),
-        description: z.string().min(10, 'وصف الشكوى مطلوب'),
-      }))
-      .mutation(async ({ input, ctx }) => {
-        try {
-          const complaint = await db.createComplaint({
-            userId: ctx.user!.id,
-            title: input.title,
-            description: input.description,
-            status: 'pending',
-            createdAt: new Date(),
-          });
-
-          return { success: true, complaint };
-        } catch (error) {
-          throw new TRPCError({
-            code: "INTERNAL_SERVER_ERROR",
-            message: "فشل تقديم الشكوى. يرجى المحاولة لاحقاً.",
-          });
-        }
-      }),
-  }),
-
-  // Applications Router
-  applications: router({
-    create: protectedProcedure
-      .input(applicationSubmissionSchema)
-      .mutation(async ({ input, ctx }) => {
-        // Validation is automatically performed by Zod schema
-        // If validation fails, tRPC will throw a 400 error automatically
-        
-        const application = await db.createApplication({
-          userId: ctx.user!.id,
-          studentType: input.studentType,
-          fullName: input.fullName,
-          studentId: input.studentId,
-          nationalId: input.nationalId,
-          email: input.email,
-          phone: input.phone,
-          major: input.major,
-          gpa: input.gpa,
-          address: input.address,
-          governorate: input.governorate,
-          familyIncome: input.familyIncome,
-          additionalInfo: input.additionalInfo,
-        });
-
-        return { success: true, application };
-      }),
-
-    list: protectedProcedure.query(async ({ ctx }) => {
-      const applications = await db.getApplicationsByUserId(ctx.user!.id);
-      return applications;
-    }),
-
-    getById: protectedProcedure
-      .input(z.object({
-        id: z.number(),
-      }))
-      .query(async ({ input, ctx }) => {
-        const application = await db.getApplicationById(input.id);
-        if (!application || application.userId !== ctx.user!.id) {
-          throw new TRPCError({
-            code: "NOT_FOUND",
-            message: "الطلب غير موجود",
-          });
-        }
-        return application;
-      }),
-
-    // Public procedure for searching by national ID
-    searchByNationalId: publicProcedure
-      .input(z.object({
-        nationalId: z.string().min(1, 'الرقم القومي مطلوب'),
-      }))
-      .query(async ({ input }) => {
-        const applications = await db.getApplicationsByNationalId(input.nationalId);
-        if (applications.length === 0) {
-          throw new TRPCError({
-            code: "NOT_FOUND",
-            message: "لم يتم العثور على طلب بهذا الرقم القومي",
-          });
-        }
-        return applications;
-      }),
-  }),
-
-  // File Upload Router
+  // ============================================
+  // FILE UPLOAD ROUTER
+  // ============================================
   files: router({
     uploadReceipt: protectedProcedure
       .input(
@@ -225,7 +472,6 @@ export const appRouter = router({
       )
       .mutation(async ({ input, ctx }) => {
         try {
-          // Validate file before processing
           const validation = validateFileForUpload(
             input.mimeType,
             input.fileSize,
@@ -239,10 +485,7 @@ export const appRouter = router({
             });
           }
 
-          // Ensure upload directory exists
           ensureUploadDirectory();
-
-          // Generate storage reference
           const storageRef = getFileStorageReference(validation.uniqueFilename);
 
           return {
@@ -258,12 +501,11 @@ export const appRouter = router({
           }
           throw new TRPCError({
             code: "INTERNAL_SERVER_ERROR",
-            message: "فشل معالجة الملف، حاول مرة أخرى",
+            message: "فشل معالجة الملف",
           });
         }
       }),
 
-    // Validate file before upload (separate endpoint for client-side pre-validation)
     validateFile: publicProcedure
       .input(
         z.object({

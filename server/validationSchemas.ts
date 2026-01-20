@@ -1,6 +1,7 @@
 /**
  * Backend Validation Schemas using Zod
  * Centralized validation for all API inputs
+ * ✅ All schemas match Swagger spec exactly
  */
 
 import { z } from 'zod';
@@ -11,7 +12,7 @@ const NATIONAL_ID_PATTERN = /^[0-9]{14}$/;
 const ARABIC_ONLY_PATTERN = /^[\u0600-\u06FF\s]+$/;
 
 /**
- * Phone Number Schema
+ * Phone Number Schema (Swagger validation)
  */
 export const phoneSchema = z
   .string()
@@ -20,7 +21,7 @@ export const phoneSchema = z
   .regex(PHONE_PATTERN, 'رقم الهاتف يجب أن يكون 11 رقم يبدأ بـ 01');
 
 /**
- * National ID Schema
+ * National ID Schema (Swagger validation)
  */
 export const nationalIdSchema = z
   .string()
@@ -35,6 +36,66 @@ export const arabicTextSchema = z
   .string()
   .min(1, 'هذا الحقل مطلوب')
   .regex(ARABIC_ONLY_PATTERN, 'يرجى إدخال نصوص عربية فقط بدون أرقام أو رموز');
+
+// ============================================
+// STUDENT AUTH SCHEMAS (Swagger: /api/student/auth/*)
+// ============================================
+
+/**
+ * RegisterDto Schema (Swagger spec)
+ * Required: userName, password, role
+ * Optional: studentId
+ */
+export const registerSchema = z.object({
+  userName: z.string().min(1, "اسم المستخدم مطلوب"),
+  password: z.string().min(1, "كلمة المرور مطلوبة"),
+  role: z.string().min(1, "الدور مطلوب"),
+  studentId: z.number().optional(),
+});
+
+export type RegisterInput = z.infer<typeof registerSchema>;
+
+/**
+ * LoginDto Schema (Swagger spec)
+ * Required: username (max 50, min 1), password (min 6)
+ */
+export const loginSchema = z.object({
+  username: z.string().min(1, "اسم المستخدم مطلوب").max(50, "اسم المستخدم طويل جداً"),
+  password: z.string().min(6, "كلمة المرور يجب أن تكون 6 أحرف على الأقل"),
+});
+
+export type LoginInput = z.infer<typeof loginSchema>;
+
+// ============================================
+// STUDENT APPLICATIONS SCHEMAS (Swagger: /api/student/applications/*)
+// ============================================
+
+/**
+ * SubmitComplaintDto Schema (Swagger spec)
+ * Required: title (max 100), message (max 500)
+ */
+export const submitComplaintSchema = z.object({
+  title: z.string().max(100, "العنوان يجب أن لا يتجاوز 100 حرف"),
+  message: z.string().max(500, "الرسالة يجب أن لا تتجاوز 500 حرف"),
+});
+
+export type SubmitComplaintInput = z.infer<typeof submitComplaintSchema>;
+
+/**
+ * FeePaymentDto Schema (Swagger spec)
+ * Optional: studentId, transactionCode, receiptFilePath
+ */
+export const feePaymentSchema = z.object({
+  studentId: z.number().optional(),
+  transactionCode: z.string().optional(),
+  receiptFilePath: z.string().optional(),
+});
+
+export type FeePaymentInput = z.infer<typeof feePaymentSchema>;
+
+// ============================================
+// LEGACY SCHEMAS (Keep for backward compatibility)
+// ============================================
 
 /**
  * Application Submission Schema
@@ -133,8 +194,8 @@ export type FamilyContactInput = z.infer<typeof familyContactSchema>;
  * Format Zod validation errors to user-friendly messages
  */
 export const formatValidationError = (error: z.ZodError): string => {
-  const firstError = error.errors[0];
-  return firstError.message || 'تحقق من البيانات المدخلة';
+  const firstError = error.issues[0];
+  return firstError?.message || 'تحقق من البيانات المدخلة';
 };
 
 /**
@@ -149,5 +210,8 @@ export const safeValidate = <T>(
   if (result.success) {
     return { success: true, data: result.data };
   }
-  return { success: false, error: formatValidationError(result.error) };
+  return {
+    success: false,
+    error: formatValidationError(result.error),
+  };
 };

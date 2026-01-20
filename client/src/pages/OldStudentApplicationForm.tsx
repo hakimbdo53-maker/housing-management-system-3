@@ -119,7 +119,7 @@ export default function OldStudentApplicationForm() {
   const governorateValue = watch('governorate');
 
   // Local database mutation for backup
-  const localBackupMutation = trpc.applications.create.useMutation();
+  const localBackupMutation = trpc.student.applications.submit.useMutation();
 
   // Note: Auto-fill is NOT used for Old Student form
   // Students must enter their information manually
@@ -165,14 +165,46 @@ export default function OldStudentApplicationForm() {
       // Also save to local database for backup using tRPC
       try {
         await localBackupMutation.mutateAsync({
-          studentType: 'old',
-          fullName: data.studentName,
-          studentId: cleanedNationalId,
-          nationalId: cleanedNationalId,
-          email: finalEmail,
-          phone: data.mobile,
-          major: data.department,
-          gpa: data.grade || 'N/A',
+          studentType: 1, // Old student
+          studentInfo: {
+            fullName: data.studentName,
+            studentId: parseInt(cleanedNationalId) || undefined,
+            nationalId: cleanedNationalId,
+            email: finalEmail,
+            phone: data.mobile,
+            faculty: data.faculty,
+            department: data.department,
+            level: data.academicYear,
+            address: data.address,
+            governorate: governorateLabel,
+          },
+          fatherInfo: {
+            fullName: data.fatherName || '',
+            nationalId: data.fatherNationalID || '',
+            relation: 'أب',
+            job: data.fatherOccupation || '',
+            phoneNumber: data.fatherPhone || '',
+            address: data.fatherAddress || '',
+          },
+          selectedGuardianRelation: data.guardianRelation || '',
+          otherGuardianInfo: {
+            fullName: data.guardianName || '',
+            nationalId: data.guardianNationalID || '',
+            relation: data.guardianRelation || '',
+            job: data.guardianOccupation || '',
+            phoneNumber: data.guardianPhone || '',
+            address: data.guardianAddress || '',
+          },
+          secondaryInfo: {
+            secondaryStream: data.secondaryStream || '',
+            totalScore: parseFloat(data.totalScore || '0'),
+            percentage: parseFloat(data.percentage || '0'),
+            grade: data.grade || '',
+          },
+          academicInfo: {
+            currentGPA: parseFloat(data.gpa || '0'),
+            lastYearGrade: data.lastYearGrade || '',
+          },
           address: data.address,
           governorate: governorateLabel,
           familyIncome: 'N/A',

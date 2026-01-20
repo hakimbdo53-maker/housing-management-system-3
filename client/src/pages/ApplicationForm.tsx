@@ -52,7 +52,7 @@ export default function ApplicationForm() {
     resolver: zodResolver(applicationSchema),
   });
 
-  const submitMutation = trpc.applications.create.useMutation({
+  const submitMutation = trpc.student.applications.submit.useMutation({
     onSuccess: (data) => {
       setSuccessMessage('تم تقديم طلبك بنجاح!');
       reset();

@@ -38,7 +38,7 @@ export default function Login() {
   });
 
   const utils = trpc.useUtils();
-  const loginMutation = trpc.auth.login.useMutation({
+  const loginMutation = trpc.student.auth.login.useMutation({
     onSuccess: async (data) => {
       // Update the cached user data immediately
       utils.auth.me.setData(undefined, data.user as any);

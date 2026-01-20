@@ -277,5 +277,144 @@ export async function getComplaintById(id: string): Promise<Complaint | undefine
   return data.complaints.find(complaint => complaint.id === id);
 }
 
+/**
+ * Notifications Database Operations
+ */
+
+export async function getNotificationsByUserId(userId: number): Promise<any[]> {
+  const db = getDatabase();
+  const data = db.getData();
+
+  if (!data.notifications) {
+    data.notifications = [];
+  }
+
+  return data.notifications.filter(n => n.studentId === userId || n.userId === userId);
+}
+
+export async function markNotificationAsRead(notificationId: number): Promise<any> {
+  const db = getDatabase();
+  const data = db.getData();
+
+  if (!data.notifications) {
+    data.notifications = [];
+  }
+
+  const notification = data.notifications.find(n => n.notificationId === notificationId);
+  if (notification) {
+    notification.isRead = true;
+    db.save();
+  }
+
+  return notification;
+}
+
+/**
+ * Fees Database Operations
+ */
+
+export async function getFeesByStudentUserId(userId: number): Promise<any[]> {
+  const db = getDatabase();
+  const data = db.getData();
+
+  if (!data.fees) {
+    data.fees = [];
+  }
+
+  return data.fees.filter(f => f.userId === userId);
+}
+
+/**
+ * Room Assignments Database Operations
+ */
+
+export async function getRoomAssignmentsByUserId(userId: number): Promise<any[]> {
+  const db = getDatabase();
+  const data = db.getData();
+
+  if (!data.roomAssignments) {
+    data.roomAssignments = [];
+  }
+
+  return data.roomAssignments.filter(ra => ra.userId === userId);
+}
+
+/**
+ * Student Database Operations
+ */
+
+export async function getStudentByUserId(userId: number): Promise<any | undefined> {
+  const db = getDatabase();
+  const data = db.getData();
+
+  if (!data.students) {
+    data.students = [];
+  }
+
+  return data.students.find(s => s.userId === userId);
+}
+
+/**
+ * Full Application Database Operations
+ */
+
+export async function createFullApplication(input: {
+  userId: number;
+  fullForm: any;
+}): Promise<any> {
+  const db = getDatabase();
+  const data = db.getData();
+
+  if (!data.fullApplications) {
+    data.fullApplications = [];
+  }
+
+  const id = data.fullApplications.length + 1;
+  const newApplication = {
+    id,
+    ...input.fullForm,
+    userId: input.userId,
+    createdAt: new Date(),
+    status: "pending",
+  };
+
+  data.fullApplications.push(newApplication);
+  db.save();
+
+  return newApplication;
+}
+
+/**
+ * Fee Payment Database Operations
+ */
+
+export async function createFeePayment(input: {
+  feeId: number;
+  userId: number;
+  studentId?: number;
+  transactionCode?: string;
+  receiptFilePath?: string;
+  status: string;
+  createdAt: Date;
+}): Promise<any> {
+  const db = getDatabase();
+  const data = db.getData();
+
+  if (!data.feePayments) {
+    data.feePayments = [];
+  }
+
+  const id = data.feePayments.length + 1;
+  const newPayment = {
+    id,
+    ...input,
+  };
+
+  data.feePayments.push(newPayment);
+  db.save();
+
+  return newPayment;
+}
+
 // TODO: add more feature queries here as your schema grows.
 

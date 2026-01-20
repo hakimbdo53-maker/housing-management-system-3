@@ -9,7 +9,7 @@ import { trpc } from '@/lib/trpc';
  * Displays the student's submitted applications.
  */
 export default function MyApplications() {
-  const { data: applications, isLoading, error } = trpc.applications.list.useQuery();
+  const { data: applications, isLoading, error } = trpc.student.applications.myApplications.useQuery();
 
   const getStatusColor = (status: string) => {
     switch (status) {

@@ -47,11 +47,9 @@ export default function Complaints() {
     resolver: zodResolver(complaintSchema),
   });
 
-  // tRPC queries and mutations
-  const complaintsQuery = trpc.complaints.list.useQuery();
-  const createComplaintMutation = trpc.complaints.create.useMutation({
+  // tRPC mutations
+  const createComplaintMutation = trpc.student.complaints.submit.useMutation({
     onSuccess: () => {
-      complaintsQuery.refetch();
       setSuccessMessage('تم تقديم الشكوى بنجاح. شكراً لتواصلك معنا.');
       reset();
       setShowForm(false);
@@ -62,16 +60,13 @@ export default function Complaints() {
     }
   });
 
-  useEffect(() => {
-    if (complaintsQuery.data) {
-      setComplaints(complaintsQuery.data as Complaint[]);
-    }
-  }, [complaintsQuery.data]);
-
   const onSubmit = async (data: ComplaintFormData) => {
     try {
       setError(null);
-      await createComplaintMutation.mutateAsync(data);
+      await createComplaintMutation.mutateAsync({
+        title: data.title,
+        message: data.description, // Map description to message for API
+      });
     } catch (err) {
       console.error('Error submitting complaint:', err);
     }
