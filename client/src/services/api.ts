@@ -1,16 +1,152 @@
-import axios from 'axios';
-import { API_BASE_URL } from '@/const';
+import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig } from 'axios';
 
 /**
- * API Service Module
+ * =====================================
+ * CENTRALIZED API CONFIGURATION
+ * =====================================
  * 
- * Centralized API client for all student-related requests
- * Handles:
- * - Profile data
- * - Notifications
- * - Fees
- * - Complaints
+ * Single source of truth for all API communication
+ * 
+ * Features:
+ * - Axios instance with baseURL from VITE_API_URL
+ * - Request logging (method, URL, headers)
+ * - Response logging (status, data)
+ * - Error logging with detailed information
+ * - Token authentication (Bearer token)
+ * - Global error handling
+ * - Response unwrapping utilities
  */
+
+// Get API URL from environment variables
+const API_URL = import.meta.env.VITE_API_URL || 'http://housingms.runasp.net/api';
+
+/**
+ * Logger utility for API requests and responses
+ */
+const logger = {
+  request: (config: InternalAxiosRequestConfig) => {
+    const { method, url, headers, data } = config;
+    console.group(`📤 API Request: ${method?.toUpperCase()} ${url}`);
+    console.log('Headers:', {
+      'Content-Type': headers?.['Content-Type'],
+      'Authorization': headers?.['Authorization'] ? '***Bearer token***' : 'None',
+    });
+    if (data) {
+      console.log('Body:', data);
+    }
+    console.groupEnd();
+  },
+
+  response: (status: number, statusText: string, data: any, url: string) => {
+    console.group(`✅ API Response: ${status} ${statusText}`);
+    console.log('URL:', url);
+    console.log('Data:', data);
+    console.groupEnd();
+  },
+
+  error: (error: AxiosError) => {
+    const { config, response, message } = error;
+    console.group(`❌ API Error: ${response?.status} ${response?.statusText || message}`);
+    console.log('Method:', config?.method?.toUpperCase());
+    console.log('URL:', config?.url);
+    console.log('Status:', response?.status);
+    console.log('Status Text:', response?.statusText);
+    if (response?.data) {
+      console.log('Error Data:', response.data);
+    }
+    console.log('Message:', message);
+    console.groupEnd();
+  },
+};
+
+/**
+ * Create centralized Axios instance
+ * 
+ * Configuration:
+ * - baseURL: From VITE_API_URL environment variable
+ * - Timeout: 30 seconds
+ * - Default headers: JSON content type
+ */
+export const apiClient: AxiosInstance = axios.create({
+  baseURL: API_URL,
+  timeout: 30000, // 30 seconds
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
+/**
+ * Request interceptor
+ * - Adds Bearer token from localStorage
+ * - Logs request details
+ */
+apiClient.interceptors.request.use(
+  (config) => {
+    // Add token if available
+    const token = localStorage.getItem('token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+
+    // Log request
+    logger.request(config);
+
+    return config;
+  },
+  (error) => {
+    console.error('❌ Request Error:', error.message);
+    return Promise.reject(error);
+  }
+);
+
+/**
+ * Response interceptor
+ * - Logs successful responses
+ * - Handles global errors (401, 500, etc.)
+ * - Logs all errors with details
+ */
+apiClient.interceptors.response.use(
+  (response) => {
+    // Log successful response
+    const { status, statusText, data, config } = response;
+    logger.response(status, statusText, data, config.url || '');
+
+    return response;
+  },
+  (error: AxiosError) => {
+    // Log error details
+    logger.error(error);
+
+    // Handle specific error codes
+    if (error.response?.status === 401) {
+      // Unauthorized - clear token and redirect
+      console.warn('⚠️ Unauthorized (401) - Clearing token');
+      localStorage.removeItem('token');
+    }
+
+    if (error.response?.status === 403) {
+      console.warn('⚠️ Forbidden (403) - Access denied');
+    }
+
+    if (error.response?.status === 404) {
+      console.warn('⚠️ Not Found (404) - Resource does not exist');
+    }
+
+    if (error.response?.status === 500) {
+      console.error('❌ Server Error (500) - Internal server error');
+    }
+
+    if (error.response?.status === 503) {
+      console.error('❌ Service Unavailable (503) - Server is down');
+    }
+
+    if (!error.response) {
+      console.error('❌ Network Error - No response received');
+    }
+
+    return Promise.reject(error);
+  }
+);
 
 /**
  * Utility function to extract array from API response
@@ -66,35 +202,6 @@ export const extractObject = (response: any): any => {
   
   return {};
 };
-
-// Create axios instance with base configuration
-export const apiClient = axios.create({
-  baseURL: API_BASE_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
-
-// Add token to every request
-apiClient.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
-
-// Handle response errors globally
-apiClient.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      // Handle unauthorized - redirect to login if needed
-      localStorage.removeItem('token');
-    }
-    return Promise.reject(error);
-  }
-);
 
 /**
  * Student Profile API Calls

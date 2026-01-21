@@ -1,10 +1,8 @@
-export const OAUTH_SERVER_URL = import.meta.env.VITE_OAUTH_SERVER_URL;
+import apiConfig from '@/lib/api';
 
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+// Re-export from centralized config for backward compatibility
+export const OAUTH_SERVER_URL = apiConfig.oauthBaseURL;
+export const API_URL = apiConfig.apiURL;
+export const API_BASE_URL = apiConfig.apiURL; // Alias for backward compatibility
 
-export const getLoginUrl = () => {
-  if (!OAUTH_SERVER_URL) {
-    throw new Error("VITE_OAUTH_SERVER_URL environment variable is not set");
-  }
-  return new URL("/login", OAUTH_SERVER_URL).toString();
-};
+export const getLoginUrl = () => apiConfig.loginURL;

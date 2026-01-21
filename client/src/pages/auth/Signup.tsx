@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useLocation } from 'wouter';
-import { User, Lock, IdCard } from 'lucide-react';
+import { User, Lock, CreditCard } from 'lucide-react';
 import AuthLayout from '@/components/AuthLayout';
 import FormInput from '@/components/FormInput';
 import ValidatedInput from '@/components/ValidatedInput';
@@ -116,7 +116,7 @@ export default function Signup() {
           label="الرقم الجامعي (Student ID)"
           type="number"
           placeholder="أدخل الرقم الجامعي"
-          icon={<IdCard size={20} />}
+          icon={<CreditCard size={20} />}
           error={errors.studentId?.message}
           required
           {...register('studentId')}
