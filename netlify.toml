@@ -1,4 +1,15 @@
 [build]
-  base = "housing-management-login"
-  command = "npm run build"
-  publish = "dist"
+command = "npm run build"
+publish = "dist"
+
+[build.environment]
+NODE_ENV = "production"
+VITE_API_URL = "https://housingms.runasp.net/api"
+VITE_OAUTH_SERVER_URL = "https://housingms.runasp.net"
+
+[[redirects]]
+from = "/*"
+to = "/index.html"
+status = 200
+
+
