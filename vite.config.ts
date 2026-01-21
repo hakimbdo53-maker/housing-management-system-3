@@ -15,18 +15,20 @@ export default defineConfig({
     outDir: path.resolve(__dirname, "dist"),
     emptyOutDir: true,
     rollupOptions: {
-      external: [
-        "@trpc/server/observable",
-        "@trpc/server/shared",
-        "@trpc/server",
-        "express",
-      ],
-      onwarn(warning, warn) {
-        // Suppress warnings for external modules
-        if (warning.code === 'EXTERNAL_NO_RESOLVABLE_ID') {
-          return;
-        }
-        warn(warning);
+      external: (id: string) => {
+        // Externalize server-side modules
+        return (
+          id.includes("@trpc/server") ||
+          id === "express" ||
+          id === "drizzle-orm" ||
+          id.includes("node_modules") && (
+            id.includes("@trpc/server") ||
+            id.includes("express")
+          )
+        );
+      },
+      output: {
+        manualChunks: undefined,
       },
     },
   },
